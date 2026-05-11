@@ -2,6 +2,8 @@
 
 Vercel подходит для frontend части проекта. Backend FastAPI и PostgreSQL нужно деплоить отдельно, например на Render или Railway.
 
+Если хочешь деплоить frontend и backend через Vercel, смотри `VERCEL_FULLSTACK.md`.
+
 ## 1. Подготовить backend URL
 
 Сначала задеплой backend и получи URL, например:

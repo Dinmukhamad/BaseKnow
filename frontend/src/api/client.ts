@@ -2,6 +2,10 @@ import axios, { AxiosError } from 'axios'
 
 const BASE_URL = import.meta.env.VITE_API_URL || ''
 
+function redirectToLogin() {
+  window.location.assign(`${window.location.origin}${window.location.pathname}#/login`)
+}
+
 export const api = axios.create({
   baseURL: `${BASE_URL}/api/v1`,
   headers: { 'Content-Type': 'application/json' },
@@ -35,7 +39,7 @@ api.interceptors.response.use(
           localStorage.removeItem('refresh_token')
         }
       }
-      window.location.href = '/login'
+      redirectToLogin()
     }
     return Promise.reject(error)
   },
