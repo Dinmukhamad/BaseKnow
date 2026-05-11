@@ -64,6 +64,16 @@ Services:
 - Swagger: http://localhost:8000/docs
 - PostgreSQL: localhost:5432
 
+## Frontend Static Deploy
+
+The frontend uses hash routing and relative Vite assets, so it can be deployed from a subpath such as GitHub Pages `/BaseKnow/`.
+Set `VITE_API_URL` to the deployed backend URL before building:
+
+```bash
+cd frontend
+VITE_API_URL=https://your-api.example.com npm run build
+```
+
 Seed users:
 
 | Login | Password | Role |

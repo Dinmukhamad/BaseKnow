@@ -1,7 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { Navigate, RouterProvider, createBrowserRouter } from 'react-router-dom'
+import { Navigate, RouterProvider, createHashRouter } from 'react-router-dom'
 import { Layout } from '@/components/Layout'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { AuditPage } from '@/pages/AuditPage'
@@ -18,7 +18,7 @@ const queryClient = new QueryClient()
 
 useAuthStore.getState().fetchMe()
 
-const router = createBrowserRouter([
+const router = createHashRouter([
   { path: '/login', element: <LoginPage /> },
   {
     element: <ProtectedRoute />,
@@ -34,10 +34,12 @@ const router = createBrowserRouter([
           { path: '/audit', element: <ProtectedRoute roles={['admin', 'supervisor']} />, children: [{ index: true, element: <AuditPage /> }] },
           { path: '/users', element: <ProtectedRoute roles={['admin']} />, children: [{ index: true, element: <UsersPage /> }] },
           { path: '/stats', element: <ProtectedRoute roles={['admin', 'supervisor']} />, children: [{ index: true, element: <StatsPage /> }] },
+          { path: '*', element: <Navigate to="/kb" replace /> },
         ],
       },
     ],
   },
+  { path: '*', element: <Navigate to="/login" replace /> },
 ])
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
