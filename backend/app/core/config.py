@@ -1,4 +1,5 @@
 from functools import lru_cache
+import json
 from pathlib import Path
 
 from pydantic import AnyHttpUrl, Field, field_validator
@@ -18,6 +19,8 @@ class Settings(BaseSettings):
     @field_validator("database_url", mode="before")
     @classmethod
     def normalize_database_url(cls, value: str) -> str:
+        if not value:
+            return value
         if value.startswith("postgres://"):
             return value.replace("postgres://", "postgresql+psycopg://", 1)
         if value.startswith("postgresql://"):
@@ -30,6 +33,21 @@ class Settings(BaseSettings):
     refresh_token_expire_days: int = 30
 
     cors_origins: list[AnyHttpUrl] | list[str] = ["http://localhost:5173"]
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def normalize_cors_origins(cls, value: str | list[str] | None) -> list[str]:
+        if value is None or value == "":
+            return ["http://localhost:5173"]
+        if isinstance(value, list):
+            return value
+        try:
+            parsed = json.loads(value)
+            if isinstance(parsed, list):
+                return parsed
+        except json.JSONDecodeError:
+            pass
+        return [origin.strip() for origin in value.split(",") if origin.strip()]
     upload_dir: Path = Path("uploads")
     max_upload_size_mb: int = 25
 

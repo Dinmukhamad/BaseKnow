@@ -21,6 +21,16 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Validate required secrets
+        run: |
+          test -n "$DATABASE_URL" || (echo "Missing GitHub Actions secret: DATABASE_URL" && exit 1)
+          test -n "$JWT_SECRET_KEY" || (echo "Missing GitHub Actions secret: JWT_SECRET_KEY" && exit 1)
+          test -n "$SEED_ADMIN_PASSWORD" || (echo "Missing GitHub Actions secret: SEED_ADMIN_PASSWORD" && exit 1)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
+          SEED_ADMIN_PASSWORD: ${{ secrets.SEED_ADMIN_PASSWORD }}
+
       - name: Run migrations
         run: alembic upgrade head
         env:
