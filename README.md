@@ -57,6 +57,8 @@ Readable SQL reference: `docs/sql_schema.sql`.
 docker compose up --build
 ```
 
+Deployment instructions are in `DEPLOY.md`.
+
 Services:
 
 - Frontend: http://localhost:5173
