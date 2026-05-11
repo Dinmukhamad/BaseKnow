@@ -1,0 +1,10 @@
+.env
+*.pyc
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+node_modules/
+dist/
+uploads/*
+!uploads/.gitkeep
+postgres_data/
