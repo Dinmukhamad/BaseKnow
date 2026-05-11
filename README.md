@@ -58,6 +58,7 @@ docker compose up --build
 ```
 
 Deployment instructions are in `DEPLOY.md`.
+Vercel frontend deployment instructions are in `VERCEL.md`.
 
 Services:
 
