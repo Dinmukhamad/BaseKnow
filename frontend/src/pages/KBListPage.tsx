@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { BookOpen, CheckCircle2, Plus, Search, TriangleAlert } from 'lucide-react'
+import { BookOpen, CheckCircle2, FileText, Plus, Search, SlidersHorizontal, TriangleAlert } from 'lucide-react'
 import { format } from 'date-fns'
 import api from '@/api/client'
 import { canManageKB } from '@/lib/rbac'
@@ -20,10 +20,12 @@ export function KBListPage() {
     queryKey: ['kb-directions'],
     queryFn: () => api.get<KBDirection[]>('/kb/directions?is_active=true').then((response) => response.data),
   })
+
   const topics = useQuery({
     queryKey: ['kb-topics', directionId],
     queryFn: () => api.get<KBTopic[]>(`/kb/topics?is_active=true${directionId ? `&direction_id=${directionId}` : ''}`).then((response) => response.data),
   })
+
   const articles = useQuery({
     queryKey: ['kb-articles', query, directionId, topicId, isActual, page],
     queryFn: () => {
@@ -39,107 +41,135 @@ export function KBListPage() {
   const resetPage = () => setPage(1)
 
   return (
-    <div className="mx-auto max-w-6xl p-6">
-      <div className="mb-6 flex items-center justify-between">
+    <div className="page-shell">
+      <header className="page-header">
         <div className="flex items-center gap-3">
-          <BookOpen className="text-brand-600" size={22} />
-          <h1 className="text-xl font-semibold text-surface-900">База знаний</h1>
-          {articles.data && <span className="rounded-full bg-surface-100 px-2.5 py-0.5 text-sm text-slate-500">{articles.data.total}</span>}
+          <div className="icon-tile">
+            <BookOpen size={20} />
+          </div>
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight text-ink-900">База знаний</h1>
+            <p className="text-sm text-ink-500">Поиск инструкций, процедур и справочных материалов</p>
+          </div>
         </div>
-        {canManageKB(user?.role) && (
-          <Link to="/kb/new" className="flex items-center gap-2 rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600">
-            <Plus size={16} />
-            Новая статья
-          </Link>
-        )}
-      </div>
+        <div className="flex items-center gap-3">
+          {articles.data && (
+            <span className="rounded-full border border-surface-200 bg-white px-3 py-1.5 text-sm text-ink-500">
+              {articles.data.total} статей
+            </span>
+          )}
+          {canManageKB(user?.role) && (
+            <Link to="/kb/new" className="btn-primary">
+              <Plus size={16} />
+              Новая статья
+            </Link>
+          )}
+        </div>
+      </header>
 
-      <div className="mb-4 space-y-3 rounded-lg border border-surface-200 bg-white p-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-          <input
-            value={query}
-            onChange={(event) => {
-              setQuery(event.target.value)
-              resetPage()
-            }}
-            placeholder="Поиск по статьям"
-            className="w-full rounded-lg border border-surface-200 py-2.5 pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-brand-500"
-          />
+      <section className="panel-pad mb-4">
+        <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-500" size={16} />
+            <input
+              value={query}
+              onChange={(event) => {
+                setQuery(event.target.value)
+                resetPage()
+              }}
+              placeholder="Найти статью по заголовку или содержанию"
+              className="field w-full pl-9"
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <div className="btn-secondary pointer-events-none px-3 text-ink-500">
+              <SlidersHorizontal size={15} />
+              Фильтры
+            </div>
+            <select
+              value={directionId}
+              onChange={(event) => {
+                setDirectionId(event.target.value)
+                setTopicId('')
+                resetPage()
+              }}
+              className="field"
+            >
+              <option value="">Все направления</option>
+              {directions.data?.map((direction) => (
+                <option key={direction.id} value={direction.id}>{direction.name}</option>
+              ))}
+            </select>
+            <select
+              value={topicId}
+              onChange={(event) => {
+                setTopicId(event.target.value)
+                resetPage()
+              }}
+              disabled={!directionId}
+              className="field disabled:opacity-50"
+            >
+              <option value="">Все тематики</option>
+              {topics.data?.map((topic) => (
+                <option key={topic.id} value={topic.id}>{topic.name}</option>
+              ))}
+            </select>
+            <select value={isActual} onChange={(event) => setIsActual(event.target.value)} className="field">
+              <option value="">Все статусы</option>
+              <option value="true">Актуальные</option>
+              <option value="false">Устаревшие</option>
+            </select>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-3">
-          <select
-            value={directionId}
-            onChange={(event) => {
-              setDirectionId(event.target.value)
-              setTopicId('')
-              resetPage()
-            }}
-            className="rounded-lg border border-surface-200 bg-white px-3 py-2 text-sm"
-          >
-            <option value="">Все направления</option>
-            {directions.data?.map((direction) => <option key={direction.id} value={direction.id}>{direction.name}</option>)}
-          </select>
-          <select
-            value={topicId}
-            onChange={(event) => {
-              setTopicId(event.target.value)
-              resetPage()
-            }}
-            disabled={!directionId}
-            className="rounded-lg border border-surface-200 bg-white px-3 py-2 text-sm disabled:opacity-50"
-          >
-            <option value="">Все тематики</option>
-            {topics.data?.map((topic) => <option key={topic.id} value={topic.id}>{topic.name}</option>)}
-          </select>
-          <select value={isActual} onChange={(event) => setIsActual(event.target.value)} className="rounded-lg border border-surface-200 bg-white px-3 py-2 text-sm">
-            <option value="">Все статусы</option>
-            <option value="true">Актуальные</option>
-            <option value="false">Устаревшие</option>
-          </select>
-        </div>
-      </div>
+      </section>
 
-      <div className="overflow-hidden rounded-lg border border-surface-200 bg-white">
+      <section className="panel overflow-hidden">
         {articles.isLoading ? (
-          <div className="py-16 text-center text-sm text-slate-500">Загрузка...</div>
+          <div className="flex items-center justify-center py-20 text-sm text-ink-500">Загрузка статей...</div>
         ) : !articles.data?.items.length ? (
-          <div className="py-16 text-center text-sm text-slate-500">Статьи не найдены</div>
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <FileText className="mb-3 text-slate-300" size={40} />
+            <div className="text-sm font-medium text-ink-700">Статьи не найдены</div>
+            <div className="mt-1 text-sm text-ink-500">Попробуйте изменить запрос или фильтры</div>
+          </div>
         ) : (
           <table className="w-full">
-            <thead className="border-b border-surface-100 text-left text-xs text-slate-500">
+            <thead className="bg-surface-50 text-left text-xs uppercase tracking-wide text-ink-500">
               <tr>
-                <th className="px-4 py-3 font-medium">Заголовок</th>
-                <th className="px-4 py-3 font-medium">Статус</th>
-                <th className="px-4 py-3 font-medium">Обновлено</th>
+                <th className="px-5 py-3 font-semibold">Статья</th>
+                <th className="px-5 py-3 font-semibold">Статус</th>
+                <th className="px-5 py-3 font-semibold">Обновлено</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-surface-100">
               {articles.data.items.map((article) => (
-                <tr key={article.id} className="border-b border-surface-100 last:border-0 hover:bg-surface-50">
-                  <td className="px-4 py-3">
-                    <Link to={`/kb/${article.id}`} className="text-sm font-medium text-surface-900 hover:text-brand-700">{article.title}</Link>
+                <tr key={article.id} className="transition hover:bg-surface-50">
+                  <td className="px-5 py-4">
+                    <Link to={`/kb/${article.id}`} className="font-medium text-ink-900 hover:text-brand-700">
+                      {article.title}
+                    </Link>
+                    <div className="mt-1 text-xs text-ink-500">ID {article.id.slice(0, 8)}</div>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-5 py-4">
                     {article.is_actual ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-xs text-green-700">
-                        <CheckCircle2 size={11} />
+                      <span className="status-pill bg-green-50 text-green-700">
+                        <CheckCircle2 size={12} />
                         Актуально
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs text-amber-700">
-                        <TriangleAlert size={11} />
+                      <span className="status-pill bg-amber-50 text-amber-700">
+                        <TriangleAlert size={12} />
                         Устарело
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-xs text-slate-500">{format(new Date(article.updated_at), 'dd.MM.yyyy HH:mm')}</td>
+                  <td className="whitespace-nowrap px-5 py-4 text-sm text-ink-500">{format(new Date(article.updated_at), 'dd.MM.yyyy HH:mm')}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
-      </div>
+      </section>
 
       {articles.data && articles.data.pages > 1 && (
         <div className="mt-4 flex justify-center gap-2">
@@ -147,7 +177,7 @@ export function KBListPage() {
             <button
               key={item}
               onClick={() => setPage(item)}
-              className={`h-8 w-8 rounded-lg text-sm ${item === page ? 'bg-brand-500 text-white' : 'border border-surface-200 bg-white text-slate-600'}`}
+              className={`h-9 min-w-9 rounded-lg px-3 text-sm font-medium transition ${item === page ? 'bg-brand-600 text-white' : 'border border-surface-200 bg-white text-ink-500 hover:bg-surface-50'}`}
             >
               {item}
             </button>
