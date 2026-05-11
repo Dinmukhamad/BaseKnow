@@ -6,7 +6,10 @@
 - `backend` как FastAPI Vercel Function
 - PostgreSQL через Vercel Marketplace, например Neon
 
-Важно: backend и frontend лучше создать как **два отдельных Vercel проекта** из одного GitHub repository.
+Можно деплоить двумя способами:
+
+- Recommended: backend и frontend как **два отдельных Vercel проекта** из одного GitHub repository.
+- Multi-service: один Vercel project с root `vercel.json` и `experimentalServices`.
 
 ## Что уже подготовлено
 
@@ -30,6 +33,65 @@ backend/.vercelignore
 ```text
 .github/workflows/vercel-backend-migrate.yml
 ```
+
+Root multi-service config:
+
+```text
+vercel.json
+```
+
+## 0. Если Vercel Показывает Services / Multiple Services
+
+Если на экране импорта Vercel показывает:
+
+```text
+Application Preset: Services
+vercel.json required to deploy projects with multiple services
+```
+
+значит Vercel обнаружил `frontend` и `backend` как два сервиса в одном проекте.
+
+Теперь в repository есть root `vercel.json`, поэтому:
+
+1. Нажми `Refresh`.
+2. Root Directory оставь:
+
+```text
+./
+```
+
+3. Открой `Environment Variables`.
+4. Добавь:
+
+```text
+DATABASE_URL=postgresql://...
+JWT_SECRET_KEY=replace-with-long-random-secret
+CORS_ORIGINS=["https://your-vercel-domain.vercel.app"]
+ENVIRONMENT=prod
+DEBUG=false
+UPLOAD_DIR=/tmp/uploads
+SEED_ADMIN_PASSWORD=Admin12345!
+VITE_API_URL=
+```
+
+Для multi-service проекта frontend будет обращаться к backend по тому же домену через `/api`, поэтому `VITE_API_URL` можно оставить пустым.
+
+5. Нажми `Deploy`.
+
+Backend будет доступен по:
+
+```text
+https://your-vercel-domain.vercel.app/api/health
+https://your-vercel-domain.vercel.app/api/docs
+```
+
+Frontend:
+
+```text
+https://your-vercel-domain.vercel.app/#/login
+```
+
+Если multi-service deploy не пройдет, используй вариант ниже с двумя отдельными проектами. Он стабильнее и проще отлаживается.
 
 ## 1. Создать PostgreSQL В Vercel
 

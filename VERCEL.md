@@ -3,6 +3,7 @@
 Vercel подходит для frontend части проекта. Backend FastAPI и PostgreSQL нужно деплоить отдельно, например на Render или Railway.
 
 Если хочешь деплоить frontend и backend через Vercel, смотри `VERCEL_FULLSTACK.md`.
+Если Vercel показывает `Application Preset: Services`, в repository есть root `vercel.json` для multi-service deploy.
 
 ## 1. Подготовить backend URL
 
