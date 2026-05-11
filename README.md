@@ -67,6 +67,9 @@ Services:
 ## Frontend Static Deploy
 
 The frontend uses hash routing and relative Vite assets, so it can be deployed from a subpath such as GitHub Pages `/BaseKnow/`.
+This repository includes `.github/workflows/deploy-frontend.yml`, which builds `frontend` and deploys `frontend/dist` to GitHub Pages.
+
+In GitHub repository settings, set Pages source to `GitHub Actions`.
 Set `VITE_API_URL` to the deployed backend URL before building:
 
 ```bash
