@@ -1,14 +1,6 @@
-CREATE TYPE user_role AS ENUM ('OPERATOR', 'SUPERVISOR', 'ADMIN');
-CREATE TYPE action_type AS ENUM (
-  'LOGIN', 'LOGOUT', 'LOGIN_FAILED', 'TOKEN_REFRESH',
-  'CREATE', 'UPDATE', 'DELETE', 'VIEW', 'STATUS_CHANGE',
-  'ROLE_CHANGE', 'KB_ARTICLE_OPEN', 'APPEAL_RETURN',
-  'FILE_UPLOAD', 'FILE_DOWNLOAD', 'SEARCH'
-);
-CREATE TYPE entity_type AS ENUM (
-  'USER', 'KB_ARTICLE', 'KB_DIRECTION', 'KB_TOPIC',
-  'APPEAL', 'AUDIT_LOG', 'AUTH'
-);
+CREATE TYPE user_role AS ENUM ('operator', 'supervisor', 'admin');
+CREATE TYPE action_type AS ENUM ('login', 'logout', 'login_failed', 'token_refresh', 'create', 'update', 'delete', 'view', 'status_change', 'role_change', 'kb_article_open', 'appeal_return', 'file_upload', 'file_download', 'search');
+CREATE TYPE entity_type AS ENUM ('user', 'kb_article', 'kb_direction', 'kb_topic', 'appeal', 'audit_log', 'auth');
 
 CREATE TABLE users (
   id uuid PRIMARY KEY,
