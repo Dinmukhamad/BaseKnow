@@ -21,31 +21,18 @@ depends_on: str | Sequence[str] | None = None
 def upgrade() -> None:
     # create_type=False — отключает автосоздание типа внутри create_table
     # checkfirst=True  — создаёт тип только если его ещё нет в базе
-    user_role = postgresql.ENUM("OPERATOR", "SUPERVISOR", "ADMIN", name="user_role", create_type=False)
-    action_type = postgresql.ENUM(
-        "LOGIN",
-        "LOGOUT",
-        "LOGIN_FAILED",
-        "TOKEN_REFRESH",
-        "CREATE",
-        "UPDATE",
-        "DELETE",
-        "VIEW",
-        "STATUS_CHANGE",
-        "ROLE_CHANGE",
-        "KB_ARTICLE_OPEN",
-        "APPEAL_RETURN",
-        "FILE_UPLOAD",
-        "FILE_DOWNLOAD",
-        "SEARCH",
-        name="action_type",
-        create_type=False,
-    )
-    entity_type = postgresql.ENUM(
-        "USER", "KB_ARTICLE", "KB_DIRECTION", "KB_TOPIC", "APPEAL", "AUDIT_LOG", "AUTH",
-        name="entity_type",
-        create_type=False,
-    )
+    user_role = postgresql.ENUM("operator", "supervisor", "admin", name="user_role", create_type=False)
+action_type = postgresql.ENUM(
+    "login", "logout", "login_failed", "token_refresh",
+    "create", "update", "delete", "view", "status_change",
+    "role_change", "kb_article_open", "appeal_return",
+    "file_upload", "file_download", "search",
+    name="action_type", create_type=False,
+)
+entity_type = postgresql.ENUM(
+    "user", "kb_article", "kb_direction", "kb_topic", "appeal", "audit_log", "auth",
+    name="entity_type", create_type=False,
+)
 
     user_role.create(op.get_bind(), checkfirst=True)
     action_type.create(op.get_bind(), checkfirst=True)
