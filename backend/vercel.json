@@ -3,7 +3,7 @@
   "version": 2,
   "functions": {
     "app/index.py": {
-      "runtime": "python3.12",
+      "runtime": "@vercel/python@4.3.0",
       "maxDuration": 60
     }
   },
