@@ -38,9 +38,9 @@ def upgrade() -> None:
         name="action_type",
     )
     entity_type = postgresql.ENUM("USER", "KB_ARTICLE", "KB_DIRECTION", "KB_TOPIC", "APPEAL", "AUDIT_LOG", "AUTH", name="entity_type")
-    user_role.create(op.get_bind())
-    action_type.create(op.get_bind())
-    entity_type.create(op.get_bind())
+    user_role.create(op.get_bind(), checkfirst=True)
+    action_type.create(op.get_bind(), checkfirst=True)
+    entity_type.create(op.get_bind(), checkfirst=True)
 
     op.create_table(
         "users",
