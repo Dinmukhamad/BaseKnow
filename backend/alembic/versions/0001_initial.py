@@ -18,7 +18,7 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    user_role = postgresql.ENUM("OPERATOR", "SUPERVISOR", "ADMIN", name="user_role")
+    user_role = postgresql.ENUM("OPERATOR", "SUPERVISOR", "ADMIN", name="user_role", create_type=False)
     action_type = postgresql.ENUM(
         "LOGIN",
         "LOGOUT",
@@ -36,8 +36,10 @@ def upgrade() -> None:
         "FILE_DOWNLOAD",
         "SEARCH",
         name="action_type",
+        create_type=False,
     )
-    entity_type = postgresql.ENUM("USER", "KB_ARTICLE", "KB_DIRECTION", "KB_TOPIC", "APPEAL", "AUDIT_LOG", "AUTH", name="entity_type")
+    entity_type = postgresql.ENUM("USER", "KB_ARTICLE", "KB_DIRECTION", "KB_TOPIC", "APPEAL", "AUDIT_LOG", "AUTH", name="entity_type", create_type=False)
+    
     user_role.create(op.get_bind(), checkfirst=True)
     action_type.create(op.get_bind(), checkfirst=True)
     entity_type.create(op.get_bind(), checkfirst=True)
