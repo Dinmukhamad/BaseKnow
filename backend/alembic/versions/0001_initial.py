@@ -18,25 +18,79 @@ branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 
-def upgrade() -> None:
-    # create_type=False — отключает автосоздание типа внутри create_table
-    # checkfirst=True  — создаёт тип только если его ещё нет в базе
-    user_role = postgresql.ENUM("operator", "supervisor", "admin", name="user_role", create_type=False)
-action_type = postgresql.ENUM(
-    "login", "logout", "login_failed", "token_refresh",
-    "create", "update", "delete", "view", "status_change",
-    "role_change", "kb_article_open", "appeal_return",
-    "file_upload", "file_download", "search",
-    name="action_type", create_type=False,
-)
-entity_type = postgresql.ENUM(
-    "user", "kb_article", "kb_direction", "kb_topic", "appeal", "audit_log", "auth",
-    name="entity_type", create_type=False,
-)
+def _create_enum(enum_type: postgresql.ENUM) -> None:
+    bind = op.get_bind()
+    values = list(enum_type.enums)
+    existing = bind.exec_driver_sql(
+        """
+        SELECT e.enumlabel
+        FROM pg_type t
+        JOIN pg_enum e ON t.oid = e.enumtypid
+        WHERE t.typname = %s
+        ORDER BY e.enumsortorder
+        """,
+        (enum_type.name,),
+    ).scalars().all()
 
-    user_role.create(op.get_bind(), checkfirst=True)
-    action_type.create(op.get_bind(), checkfirst=True)
-    entity_type.create(op.get_bind(), checkfirst=True)
+    if existing and existing != values:
+        dependent_columns = bind.exec_driver_sql(
+            """
+            SELECT count(*)
+            FROM pg_attribute a
+            JOIN pg_class c ON c.oid = a.attrelid
+            JOIN pg_type t ON t.oid = a.atttypid
+            WHERE t.typname = %s
+              AND a.attnum > 0
+              AND NOT a.attisdropped
+              AND c.relkind IN ('r', 'p')
+            """,
+            (enum_type.name,),
+        ).scalar_one()
+        if dependent_columns:
+            raise RuntimeError(
+                f"Enum {enum_type.name!r} already exists with values {existing!r}; expected {values!r}."
+            )
+        bind.exec_driver_sql(f'DROP TYPE "{enum_type.name}"')
+
+    enum_type.create(bind, checkfirst=True)
+
+
+def upgrade() -> None:
+    user_role = postgresql.ENUM("operator", "supervisor", "admin", name="user_role", create_type=False)
+    action_type = postgresql.ENUM(
+        "login",
+        "logout",
+        "login_failed",
+        "token_refresh",
+        "create",
+        "update",
+        "delete",
+        "view",
+        "status_change",
+        "role_change",
+        "kb_article_open",
+        "appeal_return",
+        "file_upload",
+        "file_download",
+        "search",
+        name="action_type",
+        create_type=False,
+    )
+    entity_type = postgresql.ENUM(
+        "user",
+        "kb_article",
+        "kb_direction",
+        "kb_topic",
+        "appeal",
+        "audit_log",
+        "auth",
+        name="entity_type",
+        create_type=False,
+    )
+
+    _create_enum(user_role)
+    _create_enum(action_type)
+    _create_enum(entity_type)
 
     op.create_table(
         "users",
