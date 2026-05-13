@@ -12,8 +12,16 @@ class AuditLog(UUIDMixin, Base):
     __tablename__ = "audit_logs"
 
     user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True, nullable=True)
-    action: Mapped[ActionType] = mapped_column(Enum(ActionType, name="action_type"), index=True, nullable=False)
-    entity_type: Mapped[EntityType | None] = mapped_column(Enum(EntityType, name="entity_type"), index=True, nullable=True)
+    action: Mapped[ActionType] = mapped_column(
+        Enum(ActionType, name="action_type", values_callable=lambda enum: [item.value for item in enum]),
+        index=True,
+        nullable=False,
+    )
+    entity_type: Mapped[EntityType | None] = mapped_column(
+        Enum(EntityType, name="entity_type", values_callable=lambda enum: [item.value for item in enum]),
+        index=True,
+        nullable=True,
+    )
     entity_id: Mapped[str | None] = mapped_column(String(64), index=True, nullable=True)
     before_data: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     after_data: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
