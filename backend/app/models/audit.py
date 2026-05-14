@@ -13,12 +13,12 @@ class AuditLog(UUIDMixin, Base):
 
     user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True, nullable=True)
     action: Mapped[ActionType] = mapped_column(
-        Enum(ActionType, name="action_type", values_callable=lambda enum: [item.value for item in enum]),
+        Enum(ActionType, name="action_type", values_callable=lambda enum: [item.value for item in enum], create_type=False),
         index=True,
         nullable=False,
     )
     entity_type: Mapped[EntityType | None] = mapped_column(
-        Enum(EntityType, name="entity_type", values_callable=lambda enum: [item.value for item in enum]),
+        Enum(EntityType, name="entity_type", values_callable=lambda enum: [item.value for item in enum], create_type=False),
         index=True,
         nullable=True,
     )
