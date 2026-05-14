@@ -32,27 +32,31 @@ def _create_enum(enum_type: postgresql.ENUM) -> None:
         (enum_type.name,),
     ).scalars().all()
 
-    if existing and existing != values:
-        dependent_columns = bind.exec_driver_sql(
-            """
-            SELECT count(*)
-            FROM pg_attribute a
-            JOIN pg_class c ON c.oid = a.attrelid
-            JOIN pg_type t ON t.oid = a.atttypid
-            WHERE t.typname = %s
-              AND a.attnum > 0
-              AND NOT a.attisdropped
-              AND c.relkind IN ('r', 'p')
-            """,
-            (enum_type.name,),
-        ).scalar_one()
-        if dependent_columns:
-            raise RuntimeError(
-                f"Enum {enum_type.name!r} already exists with values {existing!r}; expected {values!r}."
-            )
-        bind.exec_driver_sql(f'DROP TYPE "{enum_type.name}"')
+    if existing:
+        if existing != values:
+            dependent_columns = bind.exec_driver_sql(
+                """
+                SELECT count(*)
+                FROM pg_attribute a
+                JOIN pg_class c ON c.oid = a.attrelid
+                JOIN pg_type t ON t.oid = a.atttypid
+                WHERE t.typname = %s
+                  AND a.attnum > 0
+                  AND NOT a.attisdropped
+                  AND c.relkind IN ('r', 'p')
+                """,
+                (enum_type.name,),
+            ).scalar_one()
+            if dependent_columns:
+                raise RuntimeError(
+                    f"Enum {enum_type.name!r} already exists with values {existing!r}; expected {values!r}."
+                )
+            bind.exec_driver_sql(f'DROP TYPE "{enum_type.name}"')
+        else:
+            return
 
-    enum_type.create(bind, checkfirst=True)
+    values_sql = ", ".join(f"'{v}'" for v in values)
+    bind.exec_driver_sql(f'CREATE TYPE "{enum_type.name}" AS ENUM ({values_sql})')
 
 
 def upgrade() -> None:
