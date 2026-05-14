@@ -15,7 +15,7 @@ class User(UUIDMixin, TimestampMixin, Base):
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[UserRole] = mapped_column(
-        Enum(UserRole, name="user_role", values_callable=lambda enum: [item.value for item in enum]),
+        Enum(UserRole, name="user_role", values_callable=lambda enum: [item.value for item in enum], create_type=False),
         nullable=False,
         default=UserRole.OPERATOR,
     )
