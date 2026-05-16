@@ -21,12 +21,12 @@ class Settings(BaseSettings):
     def normalize_database_url(cls, value: str) -> str:
         if not value:
             return value
-        # Convert scheme to psycopg3 driver
+        # Use psycopg2 driver — better compatibility with Neon/Vercel Postgres
         if value.startswith("postgres://"):
-            value = value.replace("postgres://", "postgresql+psycopg://", 1)
-        elif value.startswith("postgresql://"):
-            value = value.replace("postgresql://", "postgresql+psycopg://", 1)
-        # Ensure SSL for hosted databases (Vercel Postgres, Neon, etc.)
+            value = value.replace("postgres://", "postgresql+psycopg2://", 1)
+        elif value.startswith("postgresql://") and "+psycopg2" not in value:
+            value = value.replace("postgresql://", "postgresql+psycopg2://", 1)
+        # Ensure SSL
         if "sslmode" not in value:
             separator = "&" if "?" in value else "?"
             value = f"{value}{separator}sslmode=require"
