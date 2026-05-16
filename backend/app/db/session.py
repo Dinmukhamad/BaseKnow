@@ -40,3 +40,7 @@ def get_db() -> Generator[Session, None, None]:
         raise
     finally:
         db.close()
+
+
+# Legacy alias for seed.py and other direct usages
+SessionLocal = _get_session_factory()
