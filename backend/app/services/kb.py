@@ -164,3 +164,21 @@ class KBService:
         self.audit.log(action=ActionType.UPDATE, entity_type=EntityType.KB_TOPIC, entity_id=topic.id, before_data=before, after_data=after, context=context)
         self.db.commit()
         return topic
+
+    def delete_direction(self, direction_id: str, context: AuditContext) -> None:
+        direction = self.directions.get(direction_id)
+        if not direction:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Direction not found")
+        before = {"name": direction.name, "description": direction.description, "is_active": direction.is_active}
+        self.directions.delete(direction)
+        self.audit.log(action=ActionType.DELETE, entity_type=EntityType.KB_DIRECTION, entity_id=direction_id, before_data=before, context=context)
+        self.db.commit()
+
+    def delete_topic(self, topic_id: str, context: AuditContext) -> None:
+        topic = self.topics.get(topic_id)
+        if not topic:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Topic not found")
+        before = {"name": topic.name, "description": topic.description, "direction_id": topic.direction_id, "is_active": topic.is_active}
+        self.topics.delete(topic)
+        self.audit.log(action=ActionType.DELETE, entity_type=EntityType.KB_TOPIC, entity_id=topic_id, before_data=before, context=context)
+        self.db.commit()

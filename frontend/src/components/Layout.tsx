@@ -1,12 +1,13 @@
 import type { ReactNode } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { BarChart2, BookOpen, ClipboardList, LogOut, PhoneCall, ShieldCheck, Users } from 'lucide-react'
+import { BarChart2, BookMarked, BookOpen, ClipboardList, LogOut, PhoneCall, ShieldCheck, Users } from 'lucide-react'
 import clsx from 'clsx'
 import { useAuthStore } from '@/store/auth'
 import type { Role } from '@/types'
 
 const navItems: Array<{ to: string; label: string; icon: ReactNode; roles: Role[] }> = [
   { to: '/kb', label: 'База знаний', icon: <BookOpen size={18} />, roles: ['operator', 'supervisor', 'admin'] },
+  { to: '/kb/dictionaries', label: 'Справочники', icon: <BookMarked size={18} />, roles: ['supervisor', 'admin'] },
   { to: '/audit', label: 'Журнал аудита', icon: <ClipboardList size={18} />, roles: ['supervisor', 'admin'] },
   { to: '/users', label: 'Пользователи', icon: <Users size={18} />, roles: ['admin'] },
   { to: '/stats', label: 'Статистика', icon: <BarChart2 size={18} />, roles: ['supervisor', 'admin'] },

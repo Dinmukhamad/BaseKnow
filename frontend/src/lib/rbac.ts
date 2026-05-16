@@ -15,3 +15,7 @@ export function canReadAudit(role: Role | undefined): boolean {
 export function canManageUsers(role: Role | undefined): boolean {
   return role === 'admin'
 }
+
+export function canManageDictionaries(role: Role | undefined): boolean {
+  return hasRole(role, ['admin', 'supervisor'])
+}
