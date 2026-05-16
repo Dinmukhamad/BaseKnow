@@ -48,8 +48,11 @@ class Settings(BaseSettings):
         except json.JSONDecodeError:
             pass
         return [origin.strip() for origin in value.split(",") if origin.strip()]
-    upload_dir: Path = Path("uploads")
-    max_upload_size_mb: int = 25
+    r2_account_id: str = Field(..., env="R2_ACCOUNT_ID")
+    r2_access_key_id: str = Field(..., env="R2_ACCESS_KEY_ID")
+    r2_secret_access_key: str = Field(..., env="R2_SECRET_ACCESS_KEY")
+    r2_bucket_name: str = Field(..., env="R2_BUCKET_NAME")
+    r2_public_url: str = Field(..., env="R2_PUBLIC_URL")
 
     seed_admin_username: str = "admin"
     seed_admin_email: str = "admin@example.com"
