@@ -15,6 +15,16 @@ export default defineConfig({
     port: 5173,
   },
   build: {
-    chunkSizeWarningLimit: 1200,
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'query-vendor': ['@tanstack/react-query'],
+          'ui-vendor': ['lucide-react', 'clsx', 'date-fns'],
+          'md-editor': ['@uiw/react-md-editor'],
+        },
+      },
+    },
   },
 })

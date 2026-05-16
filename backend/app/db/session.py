@@ -14,8 +14,15 @@ def _get_engine():
         settings.database_url,
         pool_pre_ping=True,
         future=True,
+        # Serverless: одно соединение на инстанс, без очереди
         pool_size=1,
         max_overflow=0,
+        # Переиспользуем соединение не дольше 10 минут
+        pool_recycle=600,
+        connect_args={
+            "connect_timeout": 5,
+            "options": "-c statement_timeout=10000",  # 10 сек максимум на запрос
+        },
     )
 
 
@@ -42,5 +49,5 @@ def get_db() -> Generator[Session, None, None]:
         db.close()
 
 
-# Legacy alias for seed.py and other direct usages
+# Legacy alias for seed.py
 SessionLocal = _get_session_factory()
