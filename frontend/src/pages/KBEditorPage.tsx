@@ -1,6 +1,6 @@
 import MDEditor from '@uiw/react-md-editor'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Paperclip, Plus, Save, X } from 'lucide-react'
+import { ArrowLeft, Paperclip, Plus, Save, Trash2, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import api from '@/api/client'
@@ -55,6 +55,11 @@ export function KBEditorPage() {
       navigate(`/kb/${isEditing ? id : response.data.id}`)
     },
     onError: () => setError('Не удалось сохранить статью'),
+  })
+
+  const deleteAttachment = useMutation({
+    mutationFn: (attachmentId: string) => api.delete(`/kb/articles/${id}/attachments/${attachmentId}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['kb-article', id] }),
   })
 
   const uploadAttachment = useMutation({
@@ -187,7 +192,12 @@ export function KBEditorPage() {
               {article.data?.attachments.length ? (
                 <div className="mt-3 space-y-1">
                   {article.data.attachments.map((attachment) => (
-                    <div key={attachment.id} className="truncate rounded bg-surface-50 px-2 py-1 text-xs text-ink-500">{attachment.original_filename}</div>
+                    <div key={attachment.id} className="flex items-center gap-2 rounded bg-surface-50 px-2 py-1 text-xs text-ink-500">
+                      <span className="min-w-0 flex-1 truncate">{attachment.original_filename}</span>
+                      <button onClick={() => deleteAttachment.mutate(attachment.id)} className="shrink-0 text-ink-400 hover:text-red-600" title="Удалить">
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
                   ))}
                 </div>
               ) : null}

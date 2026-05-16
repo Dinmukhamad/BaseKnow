@@ -107,6 +107,18 @@ async def upload_attachment(
     return await KBService(db).upload_attachment(article_id, file, current_user, context)
 
 
+@router.delete("/articles/{article_id}/attachments/{attachment_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_permissions(Permission.KB_MANAGE))])
+def delete_attachment(
+    article_id: str,
+    attachment_id: str,
+    current_user: CurrentUser,
+    context: AuditContext = Depends(get_audit_context),
+    db: Session = Depends(get_db),
+):
+    context = AuditContext(user_id=current_user.id, ip_address=context.ip_address, user_agent=context.user_agent)
+    KBService(db).delete_attachment(article_id, attachment_id, context)
+
+
 @router.get("/directions", response_model=list[KBDirectionRead], dependencies=[Depends(require_permissions(Permission.KB_READ))])
 def list_directions(response: Response, db: Session = Depends(get_db), is_active: bool | None = None):
     response.headers["Cache-Control"] = "private, max-age=300"  # 5 min — directions rarely change

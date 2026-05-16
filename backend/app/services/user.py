@@ -38,5 +38,19 @@ class UserService:
             self.db.rollback()
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already exists") from exc
 
+    def delete_user(self, user_id: str, current_user_id: str) -> None:
+        user = self.repo.get(user_id)
+        if not user:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        if user.id == current_user_id:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot delete your own account")
+        self.repo.delete(user)
+
     def list_users(self) -> list[User]:
         return self.repo.list_all()
+
+    def get_user(self, user_id: str) -> User:
+        user = self.repo.get(user_id)
+        if not user:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        return user

@@ -165,6 +165,16 @@ class KBService:
         self.db.commit()
         return topic
 
+    def delete_attachment(self, article_id: str, attachment_id: str, context: AuditContext) -> None:
+        attachment = self.attachments.get(attachment_id)
+        if not attachment or attachment.article_id != article_id:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Attachment not found")
+        from app.services.storage import R2StorageService
+        R2StorageService().delete(attachment.storage_path)
+        self.attachments.delete(attachment)
+        self.audit.log(action=ActionType.DELETE, entity_type=EntityType.KB_ARTICLE, entity_id=article_id, context=context, description=attachment.original_filename)
+        self.db.commit()
+
     def delete_direction(self, direction_id: str, context: AuditContext) -> None:
         direction = self.directions.get(direction_id)
         if not direction:

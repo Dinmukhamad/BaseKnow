@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
-import { ArrowLeft, CheckCircle2, Edit2, ExternalLink, Paperclip, Trash2, TriangleAlert } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, Download, Edit2, ExternalLink, Paperclip, Trash2, TriangleAlert } from 'lucide-react'
 import { lazy, Suspense } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import api from '@/api/client'
@@ -32,6 +32,11 @@ export function KBArticlePage() {
       queryClient.invalidateQueries({ queryKey: ['kb-articles'] })
       navigate('/kb')
     },
+  })
+
+  const deleteAttachment = useMutation({
+    mutationFn: (attachmentId: string) => api.delete(`/kb/articles/${id}/attachments/${attachmentId}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['kb-article', id] }),
   })
 
   if (article.isLoading) return <div className="page-shell text-sm text-ink-500">Загрузка статьи...</div>
@@ -99,6 +104,11 @@ export function KBArticlePage() {
                       <Paperclip size={14} className="text-ink-500" />
                       <span className="min-w-0 flex-1 truncate">{att.original_filename}</span>
                       <span className="text-xs text-ink-500">{(att.file_size / 1024).toFixed(1)} KB</span>
+                      {canManageKB(user?.role) && (
+                        <button onClick={() => deleteAttachment.mutate(att.id)} className="ml-1 rounded p-1 text-ink-400 hover:bg-red-50 hover:text-red-600" title="Удалить">
+                          <Trash2 size={12} />
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
