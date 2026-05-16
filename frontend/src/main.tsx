@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Navigate, RouterProvider, createHashRouter } from 'react-router-dom'
 import { Layout } from '@/components/Layout'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
+import { ToastProvider } from '@/components/Toast'
 import { LoginPage } from '@/pages/LoginPage'
 import { useAuthStore } from '@/store/auth'
 import './index.css'
@@ -13,15 +14,16 @@ const KBArticlePage = lazy(() => import('@/pages/KBArticlePage').then(m => ({ de
 const KBEditorPage = lazy(() => import('@/pages/KBEditorPage').then(m => ({ default: m.KBEditorPage })))
 const KBListPage = lazy(() => import('@/pages/KBListPage').then(m => ({ default: m.KBListPage })))
 const KBDictionariesPage = lazy(() => import('@/pages/KBDictionariesPage').then(m => ({ default: m.KBDictionariesPage })))
+const ProfilePage = lazy(() => import('@/pages/ProfilePage').then(m => ({ default: m.ProfilePage })))
 const StatsPage = lazy(() => import('@/pages/StatsPage').then(m => ({ default: m.StatsPage })))
 const UsersPage = lazy(() => import('@/pages/UsersPage').then(m => ({ default: m.UsersPage })))
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 30_000,        // данные свежие 30 сек — не перезапрашиваем при переходах
-      gcTime: 5 * 60_000,       // кэш живёт 5 минут
-      retry: 1,                 // одна повторная попытка вместо трёх
+      staleTime: 30_000,
+      gcTime: 5 * 60_000,
+      retry: 1,
       refetchOnWindowFocus: false,
     },
   },
@@ -29,31 +31,28 @@ const queryClient = new QueryClient({
 
 useAuthStore.getState().fetchMe()
 
-const Fallback = () => (
-  <div className="flex h-full items-center justify-center py-20 text-sm text-ink-500">Загрузка...</div>
-)
+const Fallback = () => <div className="flex h-full items-center justify-center py-20 text-sm text-ink-500">Загрузка...</div>
 
 const router = createHashRouter([
   { path: '/login', element: <LoginPage /> },
   {
     element: <ProtectedRoute />,
-    children: [
-      {
-        element: <Layout />,
-        children: [
-          { index: true, element: <Navigate to="/kb" replace /> },
-          { path: '/kb', element: <Suspense fallback={<Fallback />}><KBListPage /></Suspense> },
-          { path: '/kb/new', element: <ProtectedRoute roles={['admin', 'supervisor']} />, children: [{ index: true, element: <Suspense fallback={<Fallback />}><KBEditorPage /></Suspense> }] },
-          { path: '/kb/:id', element: <Suspense fallback={<Fallback />}><KBArticlePage /></Suspense> },
-          { path: '/kb/:id/edit', element: <ProtectedRoute roles={['admin', 'supervisor']} />, children: [{ index: true, element: <Suspense fallback={<Fallback />}><KBEditorPage /></Suspense> }] },
-          { path: '/kb/dictionaries', element: <ProtectedRoute roles={['admin', 'supervisor']} />, children: [{ index: true, element: <Suspense fallback={<Fallback />}><KBDictionariesPage /></Suspense> }] },
-          { path: '/audit', element: <ProtectedRoute roles={['admin', 'supervisor']} />, children: [{ index: true, element: <Suspense fallback={<Fallback />}><AuditPage /></Suspense> }] },
-          { path: '/users', element: <ProtectedRoute roles={['admin']} />, children: [{ index: true, element: <Suspense fallback={<Fallback />}><UsersPage /></Suspense> }] },
-          { path: '/stats', element: <ProtectedRoute roles={['admin', 'supervisor']} />, children: [{ index: true, element: <Suspense fallback={<Fallback />}><StatsPage /></Suspense> }] },
-          { path: '*', element: <Navigate to="/kb" replace /> },
-        ],
-      },
-    ],
+    children: [{
+      element: <Layout />,
+      children: [
+        { index: true, element: <Navigate to="/kb" replace /> },
+        { path: '/kb', element: <Suspense fallback={<Fallback />}><KBListPage /></Suspense> },
+        { path: '/kb/new', element: <ProtectedRoute roles={['admin', 'supervisor']} />, children: [{ index: true, element: <Suspense fallback={<Fallback />}><KBEditorPage /></Suspense> }] },
+        { path: '/kb/:id', element: <Suspense fallback={<Fallback />}><KBArticlePage /></Suspense> },
+        { path: '/kb/:id/edit', element: <ProtectedRoute roles={['admin', 'supervisor']} />, children: [{ index: true, element: <Suspense fallback={<Fallback />}><KBEditorPage /></Suspense> }] },
+        { path: '/kb/dictionaries', element: <ProtectedRoute roles={['admin', 'supervisor']} />, children: [{ index: true, element: <Suspense fallback={<Fallback />}><KBDictionariesPage /></Suspense> }] },
+        { path: '/profile', element: <Suspense fallback={<Fallback />}><ProfilePage /></Suspense> },
+        { path: '/audit', element: <ProtectedRoute roles={['admin', 'supervisor']} />, children: [{ index: true, element: <Suspense fallback={<Fallback />}><AuditPage /></Suspense> }] },
+        { path: '/users', element: <ProtectedRoute roles={['admin']} />, children: [{ index: true, element: <Suspense fallback={<Fallback />}><UsersPage /></Suspense> }] },
+        { path: '/stats', element: <ProtectedRoute roles={['admin', 'supervisor']} />, children: [{ index: true, element: <Suspense fallback={<Fallback />}><StatsPage /></Suspense> }] },
+        { path: '*', element: <Navigate to="/kb" replace /> },
+      ],
+    }],
   },
   { path: '*', element: <Navigate to="/login" replace /> },
 ])
@@ -61,7 +60,9 @@ const router = createHashRouter([
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
+      <ToastProvider>
+        <RouterProvider router={router} />
+      </ToastProvider>
     </QueryClientProvider>
   </React.StrictMode>,
 )

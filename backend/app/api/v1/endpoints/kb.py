@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, File, Query, Response, UploadFile, status
+from fastapi import APIRouter, Body, Depends, File, Query, Response, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import CurrentUser, get_audit_context, get_db, require_permissions
@@ -117,6 +117,41 @@ def delete_attachment(
 ):
     context = AuditContext(user_id=current_user.id, ip_address=context.ip_address, user_agent=context.user_agent)
     KBService(db).delete_attachment(article_id, attachment_id, context)
+
+
+@router.post("/articles/bulk-delete", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_permissions(Permission.KB_MANAGE))])
+def bulk_delete_articles(
+    ids: list[str] = Body(..., embed=True),
+    current_user: CurrentUser = Depends(lambda: None),
+    context: AuditContext = Depends(get_audit_context),
+    db: Session = Depends(get_db),
+):
+    from app.repositories.kb import KBArticleRepository
+    repo = KBArticleRepository(db)
+    for article_id in ids:
+        article = repo.get(article_id)
+        if article:
+            repo.delete(article)
+    db.commit()
+
+
+@router.post("/articles/bulk-outdated", dependencies=[Depends(require_permissions(Permission.KB_MANAGE))])
+def bulk_mark_outdated(
+    ids: list[str] = Body(..., embed=True),
+    current_user: CurrentUser = Depends(lambda: None),
+    context: AuditContext = Depends(get_audit_context),
+    db: Session = Depends(get_db),
+):
+    from app.repositories.kb import KBArticleRepository
+    repo = KBArticleRepository(db)
+    updated = 0
+    for article_id in ids:
+        article = repo.get(article_id)
+        if article and article.is_actual:
+            repo.update(article, {"is_actual": False})
+            updated += 1
+    db.commit()
+    return {"updated": updated}
 
 
 @router.get("/directions", response_model=list[KBDirectionRead], dependencies=[Depends(require_permissions(Permission.KB_READ))])

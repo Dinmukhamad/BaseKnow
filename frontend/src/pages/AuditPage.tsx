@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { format } from 'date-fns'
-import { ClipboardList, Search } from 'lucide-react'
+import { ClipboardList, Download, Search } from 'lucide-react'
 import api from '@/api/client'
 import { useDebounce } from '@/lib/useDebounce'
 import type { AuditLog, PaginatedResponse } from '@/types'
@@ -10,7 +10,7 @@ export function AuditPage() {
   const [queryInput, setQueryInput] = useState('')
   const [action, setAction] = useState('')
   const [page, setPage] = useState(1)
-
+  const [exporting, setExporting] = useState(false)
   const query = useDebounce(queryInput, 400)
 
   const logs = useQuery({
@@ -19,10 +19,28 @@ export function AuditPage() {
       const params = new URLSearchParams({ page: String(page), page_size: '20' })
       if (query) params.set('query', query)
       if (action) params.set('action', action)
-      return api.get<PaginatedResponse<AuditLog>>(`/audit/logs?${params}`).then((r) => r.data)
+      return api.get<PaginatedResponse<AuditLog>>(`/audit/logs?${params}`).then(r => r.data)
     },
-    placeholderData: (prev) => prev,
+    placeholderData: prev => prev,
   })
+
+  const handleExport = async () => {
+    setExporting(true)
+    try {
+      const params = new URLSearchParams()
+      if (query) params.set('query', query)
+      if (action) params.set('action', action)
+      const res = await api.get(`/audit/logs/export?${params}`, { responseType: 'blob' })
+      const url = URL.createObjectURL(new Blob([res.data]))
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `audit_log_${format(new Date(), 'yyyy-MM-dd')}.csv`
+      a.click()
+      URL.revokeObjectURL(url)
+    } finally {
+      setExporting(false)
+    }
+  }
 
   return (
     <div className="page-shell">
@@ -34,20 +52,19 @@ export function AuditPage() {
             <p className="text-sm text-ink-500">Действия пользователей, изменения записей и события доступа</p>
           </div>
         </div>
+        <button onClick={handleExport} disabled={exporting} className="btn-secondary">
+          <Download size={15} />
+          {exporting ? 'Экспорт...' : 'Скачать CSV'}
+        </button>
       </header>
 
       <section className="panel-pad mb-4">
         <div className="grid gap-3 md:grid-cols-[1fr_220px]">
           <div className="relative">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-500" />
-            <input
-              value={queryInput}
-              onChange={(e) => { setQueryInput(e.target.value); setPage(1) }}
-              placeholder="Поиск по описанию или entity id"
-              className="field w-full pl-9"
-            />
+            <input value={queryInput} onChange={e => { setQueryInput(e.target.value); setPage(1) }} placeholder="Поиск по описанию или entity id" className="field w-full pl-9" />
           </div>
-          <select value={action} onChange={(e) => { setAction(e.target.value); setPage(1) }} className="field">
+          <select value={action} onChange={e => { setAction(e.target.value); setPage(1) }} className="field">
             <option value="">Все действия</option>
             <option value="login">Login</option>
             <option value="logout">Logout</option>
@@ -55,11 +72,13 @@ export function AuditPage() {
             <option value="update">Update</option>
             <option value="delete">Delete</option>
             <option value="kb_article_open">KB open</option>
+            <option value="file_upload">File upload</option>
+            <option value="search">Search</option>
           </select>
         </div>
       </section>
 
-      <section className={`panel overflow-hidden transition-opacity ${logs.isFetching ? 'opacity-70' : 'opacity-100'}`}>
+      <section className={`panel overflow-hidden transition-opacity ${logs.isFetching ? 'opacity-70' : ''}`}>
         <table className="w-full">
           <thead className="bg-surface-50 text-left text-xs uppercase tracking-wide text-ink-500">
             <tr>
@@ -72,12 +91,10 @@ export function AuditPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-surface-100">
-            {logs.data?.items.map((log) => (
+            {logs.data?.items.map(log => (
               <tr key={log.id} className="hover:bg-surface-50">
                 <td className="whitespace-nowrap px-5 py-4 text-xs text-ink-500">{format(new Date(log.created_at), 'dd.MM.yyyy HH:mm')}</td>
-                <td className="px-5 py-4">
-                  <span className="rounded-full bg-surface-100 px-2.5 py-1 text-xs font-medium text-ink-700">{log.action}</span>
-                </td>
+                <td className="px-5 py-4"><span className="rounded-full bg-surface-100 px-2.5 py-1 text-xs font-medium text-ink-700">{log.action}</span></td>
                 <td className="px-5 py-4 text-xs text-ink-500">{log.entity_type || '-'}{log.entity_id ? ` /${log.entity_id.slice(0, 8)}` : ''}</td>
                 <td className="px-5 py-4 text-xs text-ink-500">{log.user_id?.slice(0, 8) || '-'}</td>
                 <td className="px-5 py-4 text-xs text-ink-500">{log.ip_address || '-'}</td>
@@ -86,18 +103,13 @@ export function AuditPage() {
             ))}
           </tbody>
         </table>
-        {!logs.isLoading && !logs.data?.items.length && (
-          <div className="py-20 text-center text-sm text-ink-500">Логи не найдены</div>
-        )}
+        {!logs.isLoading && !logs.data?.items.length && <div className="py-20 text-center text-sm text-ink-500">Логи не найдены</div>}
       </section>
 
       {logs.data && logs.data.pages > 1 && (
         <div className="mt-4 flex justify-center gap-2">
-          {Array.from({ length: logs.data.pages }, (_, i) => i + 1).map((p) => (
-            <button key={p} onClick={() => setPage(p)}
-              className={`h-9 min-w-9 rounded-lg px-3 text-sm font-medium ${p === page ? 'bg-brand-600 text-white' : 'border border-surface-200 bg-white text-ink-500'}`}>
-              {p}
-            </button>
+          {Array.from({ length: logs.data.pages }, (_, i) => i + 1).map(p => (
+            <button key={p} onClick={() => setPage(p)} className={`h-9 min-w-9 rounded-lg px-3 text-sm font-medium ${p === page ? 'bg-brand-600 text-white' : 'border border-surface-200 bg-white text-ink-500'}`}>{p}</button>
           ))}
         </div>
       )}

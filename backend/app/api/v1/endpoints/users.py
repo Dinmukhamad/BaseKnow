@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import CurrentUser, get_audit_context, get_db, require_permissions
@@ -10,9 +10,24 @@ from app.services.user import UserService
 router = APIRouter()
 
 
-@router.get("", response_model=list[UserRead], dependencies=[Depends(require_permissions(Permission.USERS_MANAGE))])
-def list_users(db: Session = Depends(get_db)):
-    return UserService(db).list_users()
+@router.get("", dependencies=[Depends(require_permissions(Permission.USERS_MANAGE))])
+def list_users(
+    db: Session = Depends(get_db),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    query: str | None = None,
+):
+    from sqlalchemy import or_, select
+    from app.models.user import User as UserModel
+    from app.schemas.common import PaginatedResponse
+    stmt = select(UserModel).order_by(UserModel.created_at.desc())
+    if query:
+        stmt = stmt.where(or_(UserModel.full_name.ilike(f"%{query}%"), UserModel.email.ilike(f"%{query}%"), UserModel.username.ilike(f"%{query}%")))
+    from app.repositories.base import BaseRepository
+    from sqlalchemy import func
+    total = db.scalar(select(func.count()).select_from(stmt.order_by(None).subquery())) or 0
+    items = list(db.scalars(stmt.offset((page - 1) * page_size).limit(page_size)).all())
+    return PaginatedResponse[UserRead].create(items, total, page, page_size)
 
 
 @router.get("/{user_id}", response_model=UserRead, dependencies=[Depends(require_permissions(Permission.USERS_MANAGE))])

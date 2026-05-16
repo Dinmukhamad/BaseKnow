@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { BarChart2, BookMarked, BookOpen, ClipboardList, LogOut, PhoneCall, ShieldCheck, Users } from 'lucide-react'
+import { BarChart2, BookMarked, BookOpen, ClipboardList, LogOut, PhoneCall, Settings, ShieldCheck, Users } from 'lucide-react'
 import clsx from 'clsx'
 import { useAuthStore } from '@/store/auth'
 import type { Role } from '@/types'
@@ -77,6 +77,9 @@ export function Layout() {
                   {user ? roleLabels[user.role] : ''}
                 </div>
               </div>
+              <a href="#/profile" className="rounded-md p-1.5 text-ink-500 transition hover:bg-white hover:text-brand-600" title="Мой профиль">
+                <Settings size={16} />
+              </a>
               <button onClick={handleLogout} className="rounded-md p-1.5 text-ink-500 transition hover:bg-white hover:text-accent-rose" title="Выйти">
                 <LogOut size={16} />
               </button>
