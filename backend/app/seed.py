@@ -25,10 +25,9 @@ def run() -> None:
             db.add(admin)
             db.flush()
         else:
-            admin.username = "admin"
-            admin.password_hash = hash_password("Admin123!")
+            admin.password_hash = hash_password(settings.seed_admin_password)
             admin.is_active = True
-            print("Admin credentials updated: admin / Admin123!")
+            print(f"Admin credentials reset: {settings.seed_admin_username} / {settings.seed_admin_password}")
 
         supervisor = db.scalar(select(User).where(User.username == "supervisor"))
         if not supervisor:
