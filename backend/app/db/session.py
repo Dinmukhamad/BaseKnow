@@ -21,7 +21,8 @@ def _get_engine():
         pool_recycle=600,
         connect_args={
             "connect_timeout": 5,
-            "options": "-c statement_timeout=10000",  # 10 сек максимум на запрос
+            "channel_binding": "disable",  # required for psycopg3 + Vercel Postgres
+            "options": "-c statement_timeout=10000",
         },
     )
 

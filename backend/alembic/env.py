@@ -1,18 +1,16 @@
 from logging.config import fileConfig
 
 from alembic import context
-from sqlalchemy import engine_from_config, pool
+from sqlalchemy import create_engine, pool
 
 from app.core.config import get_settings
 
 config = context.config
 fileConfig(config.config_file_name)
-config.set_main_option("sqlalchemy.url", get_settings().database_url)
+
+settings = get_settings()
 
 # Import models only for autogenerate (alembic revision --autogenerate).
-# For upgrade/downgrade they are NOT needed and cause SQLAlchemy to fire
-# before_create hooks that try to CREATE TYPE even when create_type=False
-# is not set, leading to DuplicateObject errors on re-runs.
 if context.config.cmd_opts and getattr(context.config.cmd_opts, "autogenerate", False):
     from app.db.base import Base
     from app import models  # noqa: F401
@@ -23,7 +21,7 @@ else:
 
 def run_migrations_offline() -> None:
     context.configure(
-        url=get_settings().database_url,
+        url=settings.database_url,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
@@ -33,10 +31,15 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-    connectable = engine_from_config(
-        config.get_section(config.config_ini_section),
-        prefix="sqlalchemy.",
+    # Use create_engine directly so we can pass connect_args.
+    # channel_binding=disable is required for psycopg3 with Vercel Postgres.
+    connectable = create_engine(
+        settings.database_url,
         poolclass=pool.NullPool,
+        connect_args={
+            "channel_binding": "disable",
+            "connect_timeout": 10,
+        },
     )
     with connectable.connect() as connection:
         context.configure(connection=connection, target_metadata=target_metadata)
