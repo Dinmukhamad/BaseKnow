@@ -3,12 +3,15 @@ import { useQuery } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import { ClipboardList, Search } from 'lucide-react'
 import api from '@/api/client'
+import { useDebounce } from '@/lib/useDebounce'
 import type { AuditLog, PaginatedResponse } from '@/types'
 
 export function AuditPage() {
-  const [query, setQuery] = useState('')
+  const [queryInput, setQueryInput] = useState('')
   const [action, setAction] = useState('')
   const [page, setPage] = useState(1)
+
+  const query = useDebounce(queryInput, 400)
 
   const logs = useQuery({
     queryKey: ['audit-logs', query, action, page],
@@ -16,17 +19,16 @@ export function AuditPage() {
       const params = new URLSearchParams({ page: String(page), page_size: '20' })
       if (query) params.set('query', query)
       if (action) params.set('action', action)
-      return api.get<PaginatedResponse<AuditLog>>(`/audit/logs?${params}`).then((response) => response.data)
+      return api.get<PaginatedResponse<AuditLog>>(`/audit/logs?${params}`).then((r) => r.data)
     },
+    placeholderData: (prev) => prev,
   })
 
   return (
     <div className="page-shell">
       <header className="page-header">
         <div className="flex items-center gap-3">
-          <div className="icon-tile">
-            <ClipboardList size={20} />
-          </div>
+          <div className="icon-tile"><ClipboardList size={20} /></div>
           <div>
             <h1 className="text-2xl font-semibold tracking-tight text-ink-900">Журнал аудита</h1>
             <p className="text-sm text-ink-500">Действия пользователей, изменения записей и события доступа</p>
@@ -39,16 +41,13 @@ export function AuditPage() {
           <div className="relative">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-500" />
             <input
-              value={query}
-              onChange={(event) => {
-                setQuery(event.target.value)
-                setPage(1)
-              }}
+              value={queryInput}
+              onChange={(e) => { setQueryInput(e.target.value); setPage(1) }}
               placeholder="Поиск по описанию или entity id"
               className="field w-full pl-9"
             />
           </div>
-          <select value={action} onChange={(event) => setAction(event.target.value)} className="field">
+          <select value={action} onChange={(e) => { setAction(e.target.value); setPage(1) }} className="field">
             <option value="">Все действия</option>
             <option value="login">Login</option>
             <option value="logout">Logout</option>
@@ -60,7 +59,7 @@ export function AuditPage() {
         </div>
       </section>
 
-      <section className="panel overflow-hidden">
+      <section className={`panel overflow-hidden transition-opacity ${logs.isFetching ? 'opacity-70' : 'opacity-100'}`}>
         <table className="w-full">
           <thead className="bg-surface-50 text-left text-xs uppercase tracking-wide text-ink-500">
             <tr>
@@ -79,7 +78,7 @@ export function AuditPage() {
                 <td className="px-5 py-4">
                   <span className="rounded-full bg-surface-100 px-2.5 py-1 text-xs font-medium text-ink-700">{log.action}</span>
                 </td>
-                <td className="px-5 py-4 text-xs text-ink-500">{log.entity_type || '-'} {log.entity_id ? `/${log.entity_id.slice(0, 8)}` : ''}</td>
+                <td className="px-5 py-4 text-xs text-ink-500">{log.entity_type || '-'}{log.entity_id ? ` /${log.entity_id.slice(0, 8)}` : ''}</td>
                 <td className="px-5 py-4 text-xs text-ink-500">{log.user_id?.slice(0, 8) || '-'}</td>
                 <td className="px-5 py-4 text-xs text-ink-500">{log.ip_address || '-'}</td>
                 <td className="max-w-md px-5 py-4 text-xs text-ink-500">{log.changed_fields?.join(', ') || log.description || '-'}</td>
@@ -87,14 +86,17 @@ export function AuditPage() {
             ))}
           </tbody>
         </table>
-        {!logs.isLoading && !logs.data?.items.length && <div className="py-20 text-center text-sm text-ink-500">Логи не найдены</div>}
+        {!logs.isLoading && !logs.data?.items.length && (
+          <div className="py-20 text-center text-sm text-ink-500">Логи не найдены</div>
+        )}
       </section>
 
       {logs.data && logs.data.pages > 1 && (
         <div className="mt-4 flex justify-center gap-2">
-          {Array.from({ length: logs.data.pages }, (_, index) => index + 1).map((item) => (
-            <button key={item} onClick={() => setPage(item)} className={`h-9 min-w-9 rounded-lg px-3 text-sm font-medium ${item === page ? 'bg-brand-600 text-white' : 'border border-surface-200 bg-white text-ink-500'}`}>
-              {item}
+          {Array.from({ length: logs.data.pages }, (_, i) => i + 1).map((p) => (
+            <button key={p} onClick={() => setPage(p)}
+              className={`h-9 min-w-9 rounded-lg px-3 text-sm font-medium ${p === page ? 'bg-brand-600 text-white' : 'border border-surface-200 bg-white text-ink-500'}`}>
+              {p}
             </button>
           ))}
         </div>

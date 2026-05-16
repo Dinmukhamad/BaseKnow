@@ -1,12 +1,17 @@
-import MDEditor from '@uiw/react-md-editor'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import { ArrowLeft, CheckCircle2, Edit2, ExternalLink, Paperclip, Trash2, TriangleAlert } from 'lucide-react'
+import { lazy, Suspense } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import api from '@/api/client'
 import { canManageKB } from '@/lib/rbac'
 import { useAuthStore } from '@/store/auth'
 import type { KBArticle } from '@/types'
+
+// Lazy load the heavy markdown renderer only when article content is ready
+const MDMarkdown = lazy(() =>
+  import('@uiw/react-md-editor').then((m) => ({ default: m.default.Markdown }))
+)
 
 export function KBArticlePage() {
   const { id } = useParams<{ id: string }>()
@@ -16,8 +21,9 @@ export function KBArticlePage() {
 
   const article = useQuery({
     queryKey: ['kb-article', id],
-    queryFn: () => api.get<KBArticle>(`/kb/articles/${id}`).then((response) => response.data),
+    queryFn: () => api.get<KBArticle>(`/kb/articles/${id}`).then((r) => r.data),
     enabled: Boolean(id),
+    staleTime: 60_000, // article content doesn't change often
   })
 
   const deleteArticle = useMutation({
@@ -45,9 +51,7 @@ export function KBArticlePage() {
               Редактировать
             </Link>
             <button
-              onClick={() => {
-                if (confirm('Удалить статью?')) deleteArticle.mutate()
-              }}
+              onClick={() => { if (confirm('Удалить статью?')) deleteArticle.mutate() }}
               className="btn-secondary text-accent-rose hover:border-red-200 hover:bg-red-50"
               title="Удалить"
             >
@@ -79,7 +83,9 @@ export function KBArticlePage() {
         </header>
 
         <div className="px-7 py-6" data-color-mode="light">
-          <MDEditor.Markdown source={article.data.content} />
+          <Suspense fallback={<div className="text-sm text-ink-500">Загрузка содержания...</div>}>
+            <MDMarkdown source={article.data.content} />
+          </Suspense>
         </div>
 
         {(article.data.attachments.length > 0 || article.data.links.length > 0) && (
@@ -88,11 +94,11 @@ export function KBArticlePage() {
               <div>
                 <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-500">Вложения</h3>
                 <div className="space-y-2">
-                  {article.data.attachments.map((attachment) => (
-                    <div key={attachment.id} className="flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm text-ink-700 ring-1 ring-surface-200">
+                  {article.data.attachments.map((att) => (
+                    <div key={att.id} className="flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm text-ink-700 ring-1 ring-surface-200">
                       <Paperclip size={14} className="text-ink-500" />
-                      <span className="min-w-0 flex-1 truncate">{attachment.original_filename}</span>
-                      <span className="text-xs text-ink-500">{(attachment.file_size / 1024).toFixed(1)} KB</span>
+                      <span className="min-w-0 flex-1 truncate">{att.original_filename}</span>
+                      <span className="text-xs text-ink-500">{(att.file_size / 1024).toFixed(1)} KB</span>
                     </div>
                   ))}
                 </div>
@@ -103,7 +109,8 @@ export function KBArticlePage() {
                 <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-500">Ссылки</h3>
                 <div className="space-y-2">
                   {article.data.links.map((link) => (
-                    <a key={link} href={link} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm text-brand-700 ring-1 ring-surface-200 hover:bg-brand-50">
+                    <a key={link} href={link} target="_blank" rel="noreferrer"
+                      className="flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm text-brand-700 ring-1 ring-surface-200 hover:bg-brand-50">
                       <ExternalLink size={14} />
                       <span className="min-w-0 truncate">{link}</span>
                     </a>

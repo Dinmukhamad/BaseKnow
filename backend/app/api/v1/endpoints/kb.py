@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, File, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, Query, Response, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import CurrentUser, get_audit_context, get_db, require_permissions
@@ -26,6 +26,7 @@ router = APIRouter()
 
 @router.get("/articles", response_model=PaginatedResponse[KBArticleListItem], dependencies=[Depends(require_permissions(Permission.KB_SEARCH))])
 def list_articles(
+    response: Response,
     current_user: CurrentUser,
     context: AuditContext = Depends(get_audit_context),
     db: Session = Depends(get_db),
@@ -36,15 +37,13 @@ def list_articles(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
 ):
+    # Cache list for 30s — short enough to stay fresh, long enough to help on repeated navigations
+    if not query:
+        response.headers["Cache-Control"] = "private, max-age=30"
     items, total = KBService(db).list_articles(query=query, direction_id=direction_id, topic_id=topic_id, is_actual=is_actual, page=page, page_size=page_size)
     if query:
         context = AuditContext(user_id=current_user.id, ip_address=context.ip_address, user_agent=context.user_agent)
-        AuditService(db).log(
-            action=ActionType.SEARCH,
-            entity_type=EntityType.KB_ARTICLE,
-            context=context,
-            description=query,
-        )
+        AuditService(db).log(action=ActionType.SEARCH, entity_type=EntityType.KB_ARTICLE, context=context, description=query)
         db.commit()
     return PaginatedResponse[KBArticleListItem].create(items, total, page, page_size)
 
@@ -63,10 +62,12 @@ def create_article(
 @router.get("/articles/{article_id}", response_model=KBArticleRead, dependencies=[Depends(require_permissions(Permission.KB_READ))])
 def get_article(
     article_id: str,
+    response: Response,
     current_user: CurrentUser,
     context: AuditContext = Depends(get_audit_context),
     db: Session = Depends(get_db),
 ):
+    response.headers["Cache-Control"] = "private, max-age=60"
     context = AuditContext(user_id=current_user.id, ip_address=context.ip_address, user_agent=context.user_agent)
     return KBService(db).get_article(article_id, context)
 
@@ -107,7 +108,8 @@ async def upload_attachment(
 
 
 @router.get("/directions", response_model=list[KBDirectionRead], dependencies=[Depends(require_permissions(Permission.KB_READ))])
-def list_directions(db: Session = Depends(get_db), is_active: bool | None = None):
+def list_directions(response: Response, db: Session = Depends(get_db), is_active: bool | None = None):
+    response.headers["Cache-Control"] = "private, max-age=300"  # 5 min — directions rarely change
     return KBDirectionRepository(db).find(is_active=is_active)
 
 
@@ -130,7 +132,8 @@ def delete_direction(direction_id: str, current_user: CurrentUser, context: Audi
 
 
 @router.get("/topics", response_model=list[KBTopicRead], dependencies=[Depends(require_permissions(Permission.KB_READ))])
-def list_topics(db: Session = Depends(get_db), direction_id: str | None = None, is_active: bool | None = None):
+def list_topics(response: Response, db: Session = Depends(get_db), direction_id: str | None = None, is_active: bool | None = None):
+    response.headers["Cache-Control"] = "private, max-age=300"
     return KBTopicRepository(db).find(direction_id=direction_id, is_active=is_active)
 
 

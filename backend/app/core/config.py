@@ -34,7 +34,7 @@ class Settings(BaseSettings):
 
     jwt_secret_key: str = Field(..., alias="JWT_SECRET_KEY")
     jwt_algorithm: str = "HS256"
-    access_token_expire_minutes: int = 15
+    access_token_expire_minutes: int = 60  # 1 hour — reduces token refresh calls
     refresh_token_expire_days: int = 30
 
     cors_origins: list[AnyHttpUrl] | list[str] = ["http://localhost:5173"]

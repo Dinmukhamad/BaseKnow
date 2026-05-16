@@ -18,6 +18,7 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       isAuthenticated: false,
       isLoading: false,
+
       login: async (username, password) => {
         set({ isLoading: true })
         try {
@@ -31,6 +32,7 @@ export const useAuthStore = create<AuthState>()(
           throw error
         }
       },
+
       logout: async () => {
         const refreshToken = localStorage.getItem('refresh_token')
         try {
@@ -41,18 +43,22 @@ export const useAuthStore = create<AuthState>()(
           set({ user: null, isAuthenticated: false })
         }
       },
+
+      // Background refresh — doesn't block initial render since persisted user is already loaded
       fetchMe: async () => {
         if (!localStorage.getItem('access_token')) return
         try {
           const { data } = await api.get<User>('/auth/me')
           set({ user: data, isAuthenticated: true })
         } catch {
+          // Token expired — interceptor handles refresh; if that fails, redirect to login
           set({ user: null, isAuthenticated: false })
         }
       },
     }),
     {
       name: 'contact-center-auth',
+      // Persist user + auth state → app renders instantly from localStorage
       partialize: (state) => ({ user: state.user, isAuthenticated: state.isAuthenticated }),
     },
   ),
