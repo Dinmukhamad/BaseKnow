@@ -21,10 +21,15 @@ class Settings(BaseSettings):
     def normalize_database_url(cls, value: str) -> str:
         if not value:
             return value
+        # Convert scheme to psycopg3 driver
         if value.startswith("postgres://"):
-            return value.replace("postgres://", "postgresql+psycopg://", 1)
-        if value.startswith("postgresql://"):
-            return value.replace("postgresql://", "postgresql+psycopg://", 1)
+            value = value.replace("postgres://", "postgresql+psycopg://", 1)
+        elif value.startswith("postgresql://"):
+            value = value.replace("postgresql://", "postgresql+psycopg://", 1)
+        # Ensure SSL for hosted databases (Vercel Postgres, Neon, etc.)
+        if "sslmode" not in value:
+            separator = "&" if "?" in value else "?"
+            value = f"{value}{separator}sslmode=require"
         return value
 
     jwt_secret_key: str = Field(..., alias="JWT_SECRET_KEY")
@@ -48,6 +53,8 @@ class Settings(BaseSettings):
         except json.JSONDecodeError:
             pass
         return [origin.strip() for origin in value.split(",") if origin.strip()]
+
+    # Cloudflare R2
     r2_account_id: str = Field(..., alias="R2_ACCOUNT_ID")
     r2_access_key_id: str = Field(..., alias="R2_ACCESS_KEY_ID")
     r2_secret_access_key: str = Field(..., alias="R2_SECRET_ACCESS_KEY")
