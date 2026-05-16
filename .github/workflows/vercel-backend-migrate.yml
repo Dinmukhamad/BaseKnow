@@ -41,10 +41,27 @@ jobs:
           R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
           R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
 
+      - name: Force IPv4 for PostgreSQL
+        run: |
+          # GitHub Actions runners don't support IPv6 — resolve hostname to IPv4
+          DB_HOST=$(echo "$DATABASE_URL" | sed -E 's|.*@([^:/]+).*|\1|')
+          DB_IPV4=$(getent ahostsv4 "$DB_HOST" 2>/dev/null | awk 'NR==1{print $1}')
+          if [ -n "$DB_IPV4" ]; then
+            echo "Resolved $DB_HOST → $DB_IPV4 (IPv4)"
+            # Replace hostname with IPv4 in DATABASE_URL
+            NEW_URL=$(echo "$DATABASE_URL" | sed "s/$DB_HOST/$DB_IPV4/")
+            echo "DATABASE_URL=$NEW_URL" >> $GITHUB_ENV
+          else
+            echo "Could not resolve IPv4, using original URL"
+            echo "DATABASE_URL=$DATABASE_URL" >> $GITHUB_ENV
+          fi
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
       - name: Run migrations
         run: alembic upgrade head
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL: ${{ env.DATABASE_URL }}
           JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
           CORS_ORIGINS: ${{ secrets.CORS_ORIGINS }}
           SEED_ADMIN_PASSWORD: ${{ secrets.SEED_ADMIN_PASSWORD }}
@@ -58,7 +75,7 @@ jobs:
         if: success()
         run: python -m app.seed
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL: ${{ env.DATABASE_URL }}
           JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
           CORS_ORIGINS: ${{ secrets.CORS_ORIGINS }}
           SEED_ADMIN_PASSWORD: ${{ secrets.SEED_ADMIN_PASSWORD }}
