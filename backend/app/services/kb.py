@@ -1,6 +1,3 @@
-from pathlib import Path
-from uuid import uuid4
-
 from fastapi import HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
@@ -11,6 +8,7 @@ from app.models.user import User
 from app.repositories.kb import KBAttachmentRepository, KBArticleRepository, KBDirectionRepository, KBTopicRepository
 from app.schemas.kb import KBArticleCreate, KBArticleUpdate, KBDirectionCreate, KBDirectionUpdate, KBTopicCreate, KBTopicUpdate
 from app.services.audit import AuditContext, AuditService
+from app.services.storage import R2StorageService
 
 
 def serialize_article(article: KBArticle) -> dict:
@@ -104,23 +102,26 @@ class KBService:
         article = self.articles.get(article_id)
         if not article:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Article not found")
-        content = await file.read()
-        max_bytes = self.settings.max_upload_size_mb * 1024 * 1024
-        if len(content) > max_bytes:
-            raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="File is too large")
-        upload_dir = Path(self.settings.upload_dir) / "kb" / article_id
-        upload_dir.mkdir(parents=True, exist_ok=True)
-        safe_name = f"{uuid4()}_{Path(file.filename or 'file').name}"
-        storage_path = upload_dir / safe_name
-        storage_path.write_bytes(content)
+
+        file_bytes = await file.read()
+        original_filename = file.filename or "upload"
+        content_type = file.content_type or "application/octet-stream"
+
+        # Upload to Cloudflare R2 (raises HTTP 400/503 on failure)
+        storage_path = R2StorageService().upload(
+            file_bytes=file_bytes,
+            filename=original_filename,
+            content_type=content_type,
+        )
+
         attachment = self.attachments.create(
             {
                 "article_id": article_id,
-                "filename": safe_name,
-                "original_filename": file.filename or safe_name,
-                "storage_path": str(storage_path),
-                "file_size": len(content),
-                "mime_type": file.content_type,
+                "filename": original_filename,
+                "original_filename": original_filename,
+                "storage_path": storage_path,  # R2 object key, e.g. "uploads/<uuid>.pdf"
+                "file_size": len(file_bytes),
+                "mime_type": content_type,
                 "uploaded_by_id": user.id,
             }
         )

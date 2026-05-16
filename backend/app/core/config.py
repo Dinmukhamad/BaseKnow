@@ -48,11 +48,12 @@ class Settings(BaseSettings):
         except json.JSONDecodeError:
             pass
         return [origin.strip() for origin in value.split(",") if origin.strip()]
-    r2_account_id: str = Field(..., env="R2_ACCOUNT_ID")
-    r2_access_key_id: str = Field(..., env="R2_ACCESS_KEY_ID")
-    r2_secret_access_key: str = Field(..., env="R2_SECRET_ACCESS_KEY")
-    r2_bucket_name: str = Field(..., env="R2_BUCKET_NAME")
-    r2_public_url: str = Field(..., env="R2_PUBLIC_URL")
+    r2_account_id: str = Field(..., alias="R2_ACCOUNT_ID")
+    r2_access_key_id: str = Field(..., alias="R2_ACCESS_KEY_ID")
+    r2_secret_access_key: str = Field(..., alias="R2_SECRET_ACCESS_KEY")
+    r2_bucket_name: str = Field(..., alias="R2_BUCKET_NAME")
+    # Public domain of the bucket, e.g. https://pub-xxx.r2.dev
+    r2_public_url: str = Field(..., alias="R2_PUBLIC_URL")
 
     seed_admin_username: str = "admin"
     seed_admin_email: str = "admin@example.com"

@@ -26,10 +26,20 @@ jobs:
           test -n "$DATABASE_URL" || (echo "Missing GitHub Actions secret: DATABASE_URL" && exit 1)
           test -n "$JWT_SECRET_KEY" || (echo "Missing GitHub Actions secret: JWT_SECRET_KEY" && exit 1)
           test -n "$SEED_ADMIN_PASSWORD" || (echo "Missing GitHub Actions secret: SEED_ADMIN_PASSWORD" && exit 1)
+          test -n "$R2_ACCOUNT_ID" || (echo "Missing GitHub Actions secret: R2_ACCOUNT_ID" && exit 1)
+          test -n "$R2_ACCESS_KEY_ID" || (echo "Missing GitHub Actions secret: R2_ACCESS_KEY_ID" && exit 1)
+          test -n "$R2_SECRET_ACCESS_KEY" || (echo "Missing GitHub Actions secret: R2_SECRET_ACCESS_KEY" && exit 1)
+          test -n "$R2_BUCKET_NAME" || (echo "Missing GitHub Actions secret: R2_BUCKET_NAME" && exit 1)
+          test -n "$R2_PUBLIC_URL" || (echo "Missing GitHub Actions secret: R2_PUBLIC_URL" && exit 1)
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
           SEED_ADMIN_PASSWORD: ${{ secrets.SEED_ADMIN_PASSWORD }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+          R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
       - name: Run migrations
         run: alembic upgrade head
         env:
