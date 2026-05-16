@@ -33,17 +33,17 @@ jobs:
 
       - name: Drop old enum types
         run: |
-          python -c "
+          python - <<'EOF'
           import psycopg, os
-          conn = psycopg.connect(os.environ['DATABASE_URL'])
+          conn = psycopg.connect(os.environ["DATABASE_URL"])
           conn.autocommit = True
           cur = conn.cursor()
-          cur.execute('DROP TYPE IF EXISTS user_role CASCADE')
-          cur.execute('DROP TYPE IF EXISTS action_type CASCADE')
-          cur.execute('DROP TYPE IF EXISTS entity_type CASCADE')
+          cur.execute("DROP TYPE IF EXISTS user_role CASCADE")
+          cur.execute("DROP TYPE IF EXISTS action_type CASCADE")
+          cur.execute("DROP TYPE IF EXISTS entity_type CASCADE")
           conn.close()
-          print('Done')
-          "
+          print("Done")
+          EOF
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
