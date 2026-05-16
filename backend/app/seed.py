@@ -24,6 +24,11 @@ def run() -> None:
             )
             db.add(admin)
             db.flush()
+        else:
+            admin.username = "admin"
+            admin.password_hash = hash_password("Admin123!")
+            admin.is_active = True
+            print("Admin credentials updated: admin / Admin123!")
 
         supervisor = db.scalar(select(User).where(User.username == "supervisor"))
         if not supervisor:
