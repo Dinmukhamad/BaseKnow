@@ -37,13 +37,13 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 60  # 1 hour — reduces token refresh calls
     refresh_token_expire_days: int = 30
 
-    cors_origins: list[AnyHttpUrl] | list[str] = ["http://localhost:5173"]
+    cors_origins: list[AnyHttpUrl] | list[str] = Field(default=["*"], alias="CORS_ORIGINS")
 
     @field_validator("cors_origins", mode="before")
     @classmethod
     def normalize_cors_origins(cls, value: str | list[str] | None) -> list[str]:
         if value is None or value == "":
-            return ["http://localhost:5173"]
+            return ["*"]
         if isinstance(value, list):
             return value
         try:

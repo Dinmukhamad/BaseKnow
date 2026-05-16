@@ -20,10 +20,14 @@ app = FastAPI(
 # Compress responses > 1KB — reduces payload size by ~70% for JSON
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
+_origins = [str(o) for o in settings.cors_origins]
+_allow_credentials = "*" not in _origins  # credentials не работают с wildcard
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[str(origin) for origin in settings.cors_origins],
-    allow_credentials=True,
+    allow_origins=_origins,
+    allow_origin_regex=r"https://.*\.vercel\.app" if "*" in _origins else None,
+    allow_credentials=_allow_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
 )
