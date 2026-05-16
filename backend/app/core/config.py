@@ -30,6 +30,9 @@ class Settings(BaseSettings):
         if "sslmode" not in value:
             separator = "&" if "?" in value else "?"
             value = f"{value}{separator}sslmode=require"
+        # Disable channel binding — psycopg3 requires it by default but Vercel Postgres doesn't support it
+        if "channel_binding" not in value:
+            value = f"{value}&channel_binding=disable"
         return value
 
     jwt_secret_key: str = Field(..., alias="JWT_SECRET_KEY")
