@@ -16,7 +16,7 @@ class BaseRepository(Generic[ModelT]):
         return self.db.get(self.model, entity_id)
 
     def list(self, *, page: int = 1, page_size: int = 20, statement: Select | None = None) -> tuple[list[ModelT], int]:
-        stmt = statement or select(self.model)
+        stmt = statement if statement is not None else select(self.model)
         total = self.db.scalar(select(func.count()).select_from(stmt.order_by(None).subquery())) or 0
         result = self.db.execute(stmt.offset((page - 1) * page_size).limit(page_size)).unique()
         return list(result.scalars().all()), total
