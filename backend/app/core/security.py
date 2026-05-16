@@ -2,20 +2,18 @@ from datetime import UTC, datetime, timedelta
 from hashlib import sha256
 from uuid import uuid4
 
+import bcrypt
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 
 from app.core.config import get_settings
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
 def verify_password(plain_password: str, password_hash: str) -> bool:
-    return pwd_context.verify(plain_password, password_hash)
+    return bcrypt.checkpw(plain_password.encode("utf-8"), password_hash.encode("utf-8"))
 
 
 def hash_token(token: str) -> str:
