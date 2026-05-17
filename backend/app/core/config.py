@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     def normalize_database_url(cls, value: str) -> str:
         if not value:
             return value
-        # Use psycopg2 driver — better compatibility with Neon/Vercel Postgres
+        # Use psycopg2 driver — better compatibility with Neon/Vercel Postgres (redeploy)
         if value.startswith("postgres://"):
             value = value.replace("postgres://", "postgresql+psycopg2://", 1)
         elif value.startswith("postgresql://") and "+psycopg2" not in value:
