@@ -1,16 +1,27 @@
+// src/pages/KBArticlePage.tsx
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
-import { ArrowLeft, CheckCircle2, Download, Edit2, ExternalLink, Paperclip, Trash2, TriangleAlert } from 'lucide-react'
-import { lazy, Suspense } from 'react'
+import { ru } from 'date-fns/locale'
+import {
+  ArrowLeft, CheckCircle2, Download, Edit2, ExternalLink,
+  Heart, Paperclip, Trash2, TriangleAlert, Clock
+} from 'lucide-react'
+import { lazy, Suspense, useEffect } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import api from '@/api/client'
 import { canManageKB } from '@/lib/rbac'
+import { addToHistory } from '@/lib/history'
 import { useAuthStore } from '@/store/auth'
+import { useFavoritesStore } from '@/store/favorites'
+import { useToast } from '@/components/Toast'
+import {
+  ReadingProgress, BackToTop, TableOfContents, readingTime
+} from '@/components/ArticleExtras'
+import { ArticleSkeletonPage } from '@/components/Skeleton'
 import type { KBArticle } from '@/types'
 
-// Lazy load the heavy markdown renderer only when article content is ready
 const MDMarkdown = lazy(() =>
-  import('@uiw/react-md-editor').then((m) => ({ default: m.default.Markdown }))
+  import('@uiw/react-md-editor').then(m => ({ default: m.default.Markdown }))
 )
 
 export function KBArticlePage() {
@@ -18,119 +29,258 @@ export function KBArticlePage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { user } = useAuthStore()
+  const { toggle: toggleFav, isFavorite } = useFavoritesStore()
+  const { success, error: toastError } = useToast()
 
   const article = useQuery({
     queryKey: ['kb-article', id],
-    queryFn: () => api.get<KBArticle>(`/kb/articles/${id}`).then((r) => r.data),
+    queryFn: () => api.get<KBArticle>(`/kb/articles/${id}`).then(r => r.data),
     enabled: Boolean(id),
-    staleTime: 60_000, // article content doesn't change often
+    staleTime: 60_000,
   })
+
+  // Track view history
+  useEffect(() => {
+    if (article.data) addToHistory(article.data.id, article.data.title)
+  }, [article.data?.id])
+
+  // Add copy buttons to all code blocks after markdown renders
+  useEffect(() => {
+    if (!article.data) return
+    const timer = setTimeout(() => {
+      document.querySelectorAll('.article-body pre').forEach(pre => {
+        if (pre.querySelector('.code-copy-btn')) return
+        const code = pre.querySelector('code')?.innerText ?? ''
+        const btn = document.createElement('button')
+        btn.className = 'code-copy-btn'
+        btn.textContent = 'Копировать'
+        btn.onclick = () => {
+          navigator.clipboard.writeText(code).then(() => {
+            btn.textContent = 'Скопировано!'
+            btn.classList.add('copied')
+            setTimeout(() => {
+              btn.textContent = 'Копировать'
+              btn.classList.remove('copied')
+            }, 2000)
+          })
+        }
+        pre.style.position = 'relative'
+        pre.appendChild(btn)
+      })
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [article.data])
 
   const deleteArticle = useMutation({
     mutationFn: () => api.delete(`/kb/articles/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['kb-articles'] })
+      success('Статья удалена')
       navigate('/kb')
     },
+    onError: () => toastError('Ошибка при удалении'),
   })
 
   const deleteAttachment = useMutation({
-    mutationFn: (attachmentId: string) => api.delete(`/kb/articles/${id}/attachments/${attachmentId}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['kb-article', id] }),
+    mutationFn: (attachmentId: string) =>
+      api.delete(`/kb/articles/${id}/attachments/${attachmentId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['kb-article', id] })
+      success('Вложение удалено')
+    },
   })
 
-  if (article.isLoading) return <div className="page-shell text-sm text-ink-500">Загрузка статьи...</div>
-  if (!article.data) return <div className="page-shell text-sm text-ink-500">Статья не найдена</div>
+  if (article.isLoading) return <ArticleSkeletonPage />
+
+  if (!article.data) return (
+    <div className="page-container">
+      <div className="empty-state">
+        <div style={{ fontSize: 'var(--text-4xl)' }}>📄</div>
+        <div style={{ fontSize: 'var(--text-lg)', fontWeight: 600 }}>Статья не найдена</div>
+        <Link to="/kb" className="btn btn-secondary" style={{ marginTop: 'var(--space-4)' }}>
+          <ArrowLeft size={16} />
+          Вернуться к списку
+        </Link>
+      </div>
+    </div>
+  )
+
+  const { data: a } = article
+  const minutes = readingTime(a.content)
+  const isFav = isFavorite(a.id)
 
   return (
-    <div className="page-shell max-w-5xl">
-      <div className="mb-5 flex items-center justify-between">
-        <Link to="/kb" className="btn-secondary">
-          <ArrowLeft size={16} />
-          К списку
-        </Link>
-        {canManageKB(user?.role) && (
-          <div className="flex gap-2">
-            <Link to={`/kb/${id}/edit`} className="btn-secondary">
-              <Edit2 size={15} />
-              Редактировать
-            </Link>
+    <>
+      <ReadingProgress />
+
+      <div className="page-container" style={{ maxWidth: 1100 }}>
+        {/* Breadcrumb */}
+        <nav className="breadcrumbs" aria-label="Путь навигации">
+          <Link to="/kb">База знаний</Link>
+          <span className="separator" aria-hidden="true">/</span>
+          <span className="current">{a.title}</span>
+        </nav>
+
+        {/* Top actions */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          marginBottom: 'var(--space-5)', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
+          <Link to="/kb" className="btn btn-secondary">
+            <ArrowLeft size={16} aria-hidden="true" />
+            К списку
+          </Link>
+          <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
             <button
-              onClick={() => { if (confirm('Удалить статью?')) deleteArticle.mutate() }}
-              className="btn-secondary text-accent-rose hover:border-red-200 hover:bg-red-50"
-              title="Удалить"
+              className="btn btn-ghost"
+              onClick={() => toggleFav(a.id, a.title)}
+              aria-label={isFav ? 'Убрать из избранного' : 'Добавить в избранное'}
+              style={{ color: isFav ? 'var(--color-error-icon)' : undefined }}
             >
-              <Trash2 size={15} />
+              <Heart size={16} fill={isFav ? 'currentColor' : 'none'} aria-hidden="true" />
+              {isFav ? 'В избранном' : 'В избранное'}
             </button>
-          </div>
-        )}
-      </div>
-
-      <article className="panel overflow-hidden">
-        <header className="border-b border-surface-200 bg-white px-7 py-6">
-          <div className="mb-4 flex flex-wrap items-center gap-2">
-            {article.data.is_actual ? (
-              <span className="status-pill bg-green-50 text-green-700">
-                <CheckCircle2 size={12} />
-                Актуально
-              </span>
-            ) : (
-              <span className="status-pill bg-amber-50 text-amber-700">
-                <TriangleAlert size={12} />
-                Устарело
-              </span>
+            {canManageKB(user?.role) && (
+              <>
+                <Link to={`/kb/${id}/edit`} className="btn btn-secondary">
+                  <Edit2 size={15} aria-hidden="true" />
+                  Редактировать
+                </Link>
+                <button
+                  onClick={() => { if (confirm('Удалить статью безвозвратно?')) deleteArticle.mutate() }}
+                  className="btn btn-danger"
+                  aria-label="Удалить статью"
+                >
+                  <Trash2 size={15} aria-hidden="true" />
+                </button>
+              </>
             )}
-            <span className="rounded-full bg-surface-100 px-2.5 py-1 text-xs text-ink-500">
-              Обновлено {format(new Date(article.data.updated_at), 'dd.MM.yyyy HH:mm')}
-            </span>
           </div>
-          <h1 className="text-3xl font-semibold tracking-tight text-ink-900">{article.data.title}</h1>
-        </header>
-
-        <div className="px-7 py-6" data-color-mode="light">
-          <Suspense fallback={<div className="text-sm text-ink-500">Загрузка содержания...</div>}>
-            <MDMarkdown source={article.data.content} />
-          </Suspense>
         </div>
 
-        {(article.data.attachments.length > 0 || article.data.links.length > 0) && (
-          <footer className="grid gap-5 border-t border-surface-200 bg-surface-50 px-7 py-5 md:grid-cols-2">
-            {article.data.attachments.length > 0 && (
-              <div>
-                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-500">Вложения</h3>
-                <div className="space-y-2">
-                  {article.data.attachments.map((att) => (
-                    <div key={att.id} className="flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm text-ink-700 ring-1 ring-surface-200">
-                      <Paperclip size={14} className="text-ink-500" />
-                      <span className="min-w-0 flex-1 truncate">{att.original_filename}</span>
-                      <span className="text-xs text-ink-500">{(att.file_size / 1024).toFixed(1)} KB</span>
-                      {canManageKB(user?.role) && (
-                        <button onClick={() => deleteAttachment.mutate(att.id)} className="ml-1 rounded p-1 text-ink-400 hover:bg-red-50 hover:text-red-600" title="Удалить">
-                          <Trash2 size={12} />
-                        </button>
-                      )}
+        {/* Article + sidebar layout */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 240px', gap: 'var(--space-8)',
+          alignItems: 'start' }}>
+          {/* Main article */}
+          <article className="card" style={{ overflow: 'hidden' }}>
+            {/* Article header */}
+            <header style={{ padding: 'var(--space-6) var(--space-8)',
+              borderBottom: '1px solid var(--color-border)' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)',
+                marginBottom: 'var(--space-4)' }}>
+                {a.is_actual
+                  ? <span className="pill pill-success"><CheckCircle2 size={11} />Актуально</span>
+                  : <span className="pill pill-warning"><TriangleAlert size={11} />Устарело</span>
+                }
+                <span className="pill pill-neutral">
+                  <Clock size={11} />
+                  {minutes} мин. чтения
+                </span>
+                <span className="pill pill-neutral">
+                  Обновлено {format(new Date(a.updated_at), 'd MMM yyyy', { locale: ru })}
+                </span>
+              </div>
+              <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--text-3xl)',
+                fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1.2 }}>
+                {a.title}
+              </h1>
+            </header>
+
+            {/* Article body */}
+            <div className="article-body" style={{ padding: 'var(--space-8)' }}
+              id="article-body" data-color-mode="auto">
+              <Suspense fallback={
+                <div style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-tertiary)' }}>
+                  Загрузка содержания...
+                </div>
+              }>
+                <MDMarkdown source={a.content} />
+              </Suspense>
+            </div>
+
+            {/* Attachments & links footer */}
+            {(a.attachments.length > 0 || a.links.length > 0) && (
+              <footer style={{
+                display: 'grid',
+                gridTemplateColumns: a.attachments.length && a.links.length ? '1fr 1fr' : '1fr',
+                gap: 'var(--space-5)',
+                borderTop: '1px solid var(--color-border)',
+                background: 'var(--color-surface-2)',
+                padding: 'var(--space-5) var(--space-8)',
+              }}>
+                {a.attachments.length > 0 && (
+                  <div>
+                    <div className="section-label">Вложения</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                      {a.attachments.map(att => (
+                        <div
+                          key={att.id}
+                          style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)',
+                            background: 'var(--color-surface)', border: '1px solid var(--color-border)',
+                            borderRadius: 'var(--radius-md)', padding: 'var(--space-2) var(--space-3)',
+                            fontSize: 'var(--text-sm)' }}
+                        >
+                          <Paperclip size={13} color="var(--color-text-tertiary)" aria-hidden="true" />
+                          <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap' }}>
+                            {att.original_filename}
+                          </span>
+                          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-tertiary)',
+                            flexShrink: 0 }}>
+                            {(att.file_size / 1024).toFixed(1)} KB
+                          </span>
+                          {canManageKB(user?.role) && (
+                            <button
+                              onClick={() => deleteAttachment.mutate(att.id)}
+                              className="btn btn-ghost btn-icon"
+                              aria-label={`Удалить вложение ${att.original_filename}`}
+                              style={{ width: 24, height: 24, color: 'var(--color-error-text)' }}
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          )}
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </div>
+                  </div>
+                )}
+                {a.links.length > 0 && (
+                  <div>
+                    <div className="section-label">Ссылки</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                      {a.links.map(link => (
+                        <a
+                          key={link}
+                          href={link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)',
+                            background: 'var(--color-surface)', border: '1px solid var(--color-border)',
+                            borderRadius: 'var(--radius-md)', padding: 'var(--space-2) var(--space-3)',
+                            fontSize: 'var(--text-sm)', color: 'var(--color-text-link)',
+                            transition: 'background var(--duration-fast)' }}
+                        >
+                          <ExternalLink size={13} aria-hidden="true" />
+                          <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap' }}>
+                            {link}
+                          </span>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </footer>
             )}
-            {article.data.links.length > 0 && (
-              <div>
-                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-500">Ссылки</h3>
-                <div className="space-y-2">
-                  {article.data.links.map((link) => (
-                    <a key={link} href={link} target="_blank" rel="noreferrer"
-                      className="flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm text-brand-700 ring-1 ring-surface-200 hover:bg-brand-50">
-                      <ExternalLink size={14} />
-                      <span className="min-w-0 truncate">{link}</span>
-                    </a>
-                  ))}
-                </div>
-              </div>
-            )}
-          </footer>
-        )}
-      </article>
-    </div>
+          </article>
+
+          {/* TOC sidebar */}
+          <aside style={{ position: 'sticky', top: 'var(--space-6)' }}
+            aria-label="Оглавление">
+            <TableOfContents contentSelector="#article-body" />
+          </aside>
+        </div>
+      </div>
+
+      <BackToTop />
+    </>
   )
 }

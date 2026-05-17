@@ -1,55 +1,85 @@
-import { createContext, useCallback, useContext, useReducer, useRef } from 'react'
-import { CheckCircle2, Info, X, XCircle } from 'lucide-react'
+// src/components/Toast.tsx
+import { createContext, useCallback, useContext, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
+import { CheckCircle2, X, AlertCircle, AlertTriangle, Info } from 'lucide-react'
 
-type ToastType = 'success' | 'error' | 'info'
-interface Toast { id: number; type: ToastType; message: string }
-interface ToastCtx { show: (message: string, type?: ToastType) => void; success: (m: string) => void; error: (m: string) => void }
+type ToastType = 'success' | 'error' | 'warning' | 'info'
 
-const Ctx = createContext<ToastCtx>({ show: () => {}, success: () => {}, error: () => {} })
-
-const icons: Record<ToastType, JSX.Element> = {
-  success: <CheckCircle2 size={16} className="shrink-0 text-green-600" />,
-  error: <XCircle size={16} className="shrink-0 text-red-500" />,
-  info: <Info size={16} className="shrink-0 text-blue-500" />,
-}
-const bg: Record<ToastType, string> = {
-  success: 'border-green-100 bg-green-50 text-green-900',
-  error: 'border-red-100 bg-red-50 text-red-900',
-  info: 'border-blue-100 bg-blue-50 text-blue-900',
+interface ToastItem {
+  id: string
+  type: ToastType
+  title: string
+  message?: string
+  exiting?: boolean
 }
 
-export function ToastProvider({ children }: { children: React.ReactNode }) {
-  const [toasts, dispatch] = useReducer((s: Toast[], a: { type: 'add'; toast: Toast } | { type: 'remove'; id: number }) =>
-    a.type === 'add' ? [...s, a.toast] : s.filter(t => t.id !== a.id), [])
-  const counter = useRef(0)
+interface ToastCtx {
+  success: (title: string, message?: string) => void
+  error:   (title: string, message?: string) => void
+  warning: (title: string, message?: string) => void
+  info:    (title: string, message?: string) => void
+}
 
-  const show = useCallback((message: string, type: ToastType = 'info') => {
-    const id = ++counter.current
-    dispatch({ type: 'add', toast: { id, type, message } })
-    setTimeout(() => dispatch({ type: 'remove', id }), 4000)
+const Ctx = createContext<ToastCtx | null>(null)
+
+const ICONS: Record<ToastType, ReactNode> = {
+  success: <CheckCircle2 size={16} />,
+  error:   <AlertCircle size={16} />,
+  warning: <AlertTriangle size={16} />,
+  info:    <Info size={16} />,
+}
+
+export function ToastProvider({ children }: { children: ReactNode }) {
+  const [toasts, setToasts] = useState<ToastItem[]>([])
+  const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
+
+  const dismiss = useCallback((id: string) => {
+    setToasts(prev =>
+      prev.map(t => t.id === id ? { ...t, exiting: true } : t)
+    )
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 300)
   }, [])
 
-  const success = useCallback((m: string) => show(m, 'success'), [show])
-  const error = useCallback((m: string) => show(m, 'error'), [show])
+  const add = useCallback((type: ToastType, title: string, message?: string) => {
+    const id = Math.random().toString(36).slice(2)
+    setToasts(prev => [{ id, type, title, message }, ...prev.slice(0, 4)])
+    timers.current[id] = setTimeout(() => dismiss(id), 4000)
+  }, [dismiss])
+
+  const ctx: ToastCtx = {
+    success: (t, m) => add('success', t, m),
+    error:   (t, m) => add('error',   t, m),
+    warning: (t, m) => add('warning', t, m),
+    info:    (t, m) => add('info',    t, m),
+  }
 
   return (
-    <Ctx.Provider value={{ show, success, error }}>
+    <Ctx.Provider value={ctx}>
       {children}
-      <div style={{ position: 'fixed', bottom: '1.5rem', right: '1.5rem', zIndex: 100, display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '280px', maxWidth: '380px' }}>
+      <div className="toast-container" role="region" aria-label="Уведомления" aria-live="polite">
         {toasts.map(t => (
-          <div key={t.id} className={`flex items-start gap-3 rounded-xl border px-4 py-3 text-sm shadow-lg ${bg[t.type]}`}
-            style={{ animation: 'slideIn 0.2s ease' }}>
-            {icons[t.type]}
-            <span className="flex-1 leading-snug">{t.message}</span>
-            <button onClick={() => dispatch({ type: 'remove', id: t.id })} className="opacity-50 hover:opacity-100">
+          <div key={t.id} className={`toast ${t.type}${t.exiting ? ' exiting' : ''}`} role="alert">
+            <span className="toast-icon">{ICONS[t.type]}</span>
+            <div className="toast-content">
+              <div className="toast-title">{t.title}</div>
+              {t.message && <div className="toast-message">{t.message}</div>}
+            </div>
+            <button
+              className="toast-close"
+              onClick={() => dismiss(t.id)}
+              aria-label="Закрыть уведомление"
+            >
               <X size={14} />
             </button>
           </div>
         ))}
       </div>
-      <style>{`@keyframes slideIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}`}</style>
     </Ctx.Provider>
   )
 }
 
-export const useToast = () => useContext(Ctx)
+export function useToast(): ToastCtx {
+  const ctx = useContext(Ctx)
+  if (!ctx) throw new Error('useToast must be inside ToastProvider')
+  return ctx
+}
