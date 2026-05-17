@@ -1,153 +1,216 @@
-# Contact Center Platform
+# BaseKnow 2.0 — База знаний
 
-Внутренняя система контакт-центра: JWT авторизация, RBAC, база знаний, аудит действий пользователей. Проект собран как масштабируемый монорепозиторий под дальнейшее подключение телефонии, CRM, AI, внутреннего чата и тикетной системы.
+Внутренняя платформа базы знаний для контакт-центров.  
+Редизайн версии 2.0: новая дизайн-система, тёмная тема, поиск Ctrl+K, избранное, TOC.
 
-## Архитектура
+---
 
-```text
-backend/
-  app/
-    api/             FastAPI routes and dependencies
-    core/            settings, security, RBAC enums
-    db/              SQLAlchemy session and base
-    models/          ORM models
-    repositories/    database access layer
-    services/        business logic and audit publishing boundary
-    schemas/         Pydantic DTOs
-    middleware/      request context middleware
-  alembic/           migrations
-frontend/
-  src/
-    api/             Axios client with JWT refresh
-    components/      layout and protected routes
-    pages/           auth, KB, audit, users, stats
-    store/           Zustand auth store
-```
+## Стек
 
-Backend follows API -> service -> repository -> model boundaries. `AuditPublisher` is the extension point for future Celery/Kafka/event bus integration.
+| Слой         | Технология                                         |
+|--------------|----------------------------------------------------|
+| Frontend     | React 18 + TypeScript + Vite 5                     |
+| Стили        | CSS Custom Properties + Tailwind (утилиты)         |
+| Шрифты       | Syne (UI/заголовки) + Source Serif 4 (контент)     |
+| Состояние    | Zustand (auth, theme, favorites)                   |
+| Запросы      | TanStack Query v5 + Axios                          |
+| Роутинг      | React Router v6 (hash-routing)                     |
+| Markdown     | @uiw/react-md-editor (lazy-loaded)                 |
+| Backend      | FastAPI + SQLAlchemy + PostgreSQL                  |
 
-## RBAC
+---
 
-Roles:
+## Запуск
 
-- `operator`: create appeals, read/search knowledge base.
-- `supervisor`: operator permissions plus all appeals, logs, statistics, KB management.
-- `admin`: full access, user/role/dictionary management.
+### Требования
+- Node.js 20+
+- Python 3.11+
+- PostgreSQL 15+
 
-Permission guards are implemented in `backend/app/api/deps.py` via `require_permissions(...)`.
-
-## Database
-
-Main tables:
-
-- `users`
-- `refresh_tokens`
-- `kb_directions`
-- `kb_topics`
-- `kb_articles`
-- `kb_attachments`
-- `audit_logs`
-
-The initial Alembic migration also creates a PostgreSQL GIN full-text index for KB article search.
-Readable SQL reference: `docs/sql_schema.sql`.
-
-## Run
-
-```bash
-docker compose up --build
-```
-
-Deployment instructions are in `DEPLOY.md`.
-Vercel frontend deployment instructions are in `VERCEL.md`.
-Full Vercel deployment instructions are in `VERCEL_FULLSTACK.md`.
-
-Services:
-
-- Frontend: http://localhost:5173
-- Backend API: http://localhost:8000
-- Swagger: http://localhost:8000/docs
-- PostgreSQL: localhost:5432
-
-## Frontend Static Deploy
-
-The frontend uses hash routing and relative Vite assets, so it can be deployed from a subpath such as GitHub Pages `/BaseKnow/`.
-This repository includes `.github/workflows/deploy-frontend.yml`, which builds `frontend` and deploys `frontend/dist` to GitHub Pages.
-
-In GitHub repository settings, set Pages source to `GitHub Actions`.
-Set `VITE_API_URL` to the deployed backend URL before building:
+### Frontend
 
 ```bash
 cd frontend
-VITE_API_URL=https://your-api.example.com npm run build
+npm install
+cp .env.example .env        # настройте VITE_API_URL
+npm run dev                 # http://localhost:5173
 ```
 
-Seed users:
-
-| Login | Password | Role |
-| --- | --- | --- |
-| `admin` | `Admin12345!` | admin |
-| `supervisor` | `Supervisor123!` | supervisor |
-| `operator` | `Operator123!` | operator |
-
-## Local backend commands
+### Backend
 
 ```bash
 cd backend
 python -m venv .venv
-.venv\Scripts\activate
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-copy .env.example .env
 alembic upgrade head
-python -m app.seed
-uvicorn app.main:app --reload
+python -m app.seed          # опционально: создать тестовых пользователей
+uvicorn app.main:app --reload --port 8000
 ```
 
-## API routes
+### Docker (всё сразу)
 
-Auth:
+```bash
+docker compose up -d
+```
 
-- `POST /api/v1/auth/login`
-- `POST /api/v1/auth/refresh`
-- `POST /api/v1/auth/logout`
-- `GET /api/v1/auth/me`
+Приложение: http://localhost:5173  
+API docs: http://localhost:8000/docs
 
-Users:
+---
 
-- `GET /api/v1/users`
-- `POST /api/v1/users`
-- `PATCH /api/v1/users/{user_id}`
+## Переменные окружения
 
-Knowledge base:
+### Frontend (`.env`)
 
-- `GET /api/v1/kb/articles`
-- `POST /api/v1/kb/articles`
-- `GET /api/v1/kb/articles/{article_id}`
-- `PATCH /api/v1/kb/articles/{article_id}`
-- `DELETE /api/v1/kb/articles/{article_id}`
-- `POST /api/v1/kb/articles/{article_id}/attachments`
-- `GET/POST/PATCH /api/v1/kb/directions`
-- `GET/POST/PATCH /api/v1/kb/topics`
+```env
+VITE_API_URL=http://localhost:8000
+```
 
-Audit:
+### Backend (`.env`)
 
-- `GET /api/v1/audit/logs`
+```env
+DATABASE_URL=postgresql://user:password@localhost:5432/baseknow
+SECRET_KEY=your-secret-key-min-32-chars
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+REFRESH_TOKEN_EXPIRE_DAYS=7
+UPLOAD_DIR=./uploads
+MAX_UPLOAD_SIZE_MB=10
+```
 
-## Audit Examples
+---
 
-Logged fields: `user_id`, `action`, `entity_type`, `entity_id`, `before_data`, `after_data`, `changed_fields`, `ip_address`, `user_agent`, `created_at`.
+## Роли и доступ
 
-Examples already emitted by services:
+| Роль         | Возможности                                                    |
+|--------------|----------------------------------------------------------------|
+| `operator`   | Просмотр и поиск статей, избранное                             |
+| `supervisor` | + Создание/редактирование статей, справочники, аудит, статистика |
+| `admin`      | Полный доступ: пользователи, роли, все функции                 |
 
-- login/logout/token refresh
-- user create/update
-- KB article create/update/delete/open
-- attachment upload
-- direction/topic create/update
+---
 
-## Notes for Production
+## Новое в версии 2.0
 
-- Replace `JWT_SECRET_KEY` with a strong secret.
-- Move uploaded files to S3/MinIO or protected object storage.
-- Put backend behind a reverse proxy with TLS.
-- Replace synchronous audit persistence with queue publishing when event volume grows.
-- Add rate limiting for auth endpoints.
+### Дизайн
+- Новая дизайн-система на CSS Custom Properties (токены)
+- Тёмная и светлая темы с `data-theme` + `prefers-color-scheme`
+- Шрифты Syne + Source Serif 4 (вместо Inter)
+- Электрик-синий акцент (#1d68f0) на тёмно-синем фоне
+- Сворачиваемый сайдбар с тултипами в collapsed-режиме
+- Плавные переходы и hover-эффекты на всех интерактивных элементах
+
+### Функционал
+- **Ctrl+K** — глобальный поиск с историей запросов
+- **Избранное** — ❤ на каждой статье, страница `/favorites`
+- **Прогресс чтения** — полоса прогресса вверху страницы
+- **TOC** — оглавление с автоподсветкой текущего раздела
+- **Копирование кода** — кнопка на каждом блоке кода
+- **Skeleton loaders** — вместо спиннеров
+- **Pagination с ellipsis** — для больших списков
+- **BackToTop** — кнопка при скролле вниз
+
+### Производительность
+- Code splitting: react-vendor, query-vendor, md-editor, ui-vendor
+- Lazy loading всех страниц
+- TanStack Query кеширование (30s stale time)
+- HTTP Cache-Control заголовки на бэкенде
+- `optimizeDeps` для быстрого HMR
+
+### Доступность
+- `skip-link` — первый элемент DOM
+- `focus-visible` стили на всех фокусируемых элементах
+- `aria-label` на всех иконочных кнопках
+- `aria-current="page"` в навигации
+- `aria-live="polite"` на ошибках форм и тостах
+- `role="search"` на поисковом блоке
+- `prefers-reduced-motion` отключает анимации
+
+---
+
+## Структура
+
+```
+frontend/src/
+├── api/
+│   └── client.ts          # Axios + interceptor авторебефреша
+├── components/
+│   ├── Layout.tsx          # Сайдбар + main + SearchModal
+│   ├── SearchModal.tsx     # Ctrl+K поиск
+│   ├── ArticleExtras.tsx   # ReadingProgress, TOC, BackToTop
+│   ├── Pagination.tsx      # Пагинация с ellipsis
+│   ├── Skeleton.tsx        # Skeleton loaders
+│   ├── Toast.tsx           # Уведомления
+│   └── ProtectedRoute.tsx  # Защита роутов
+├── lib/
+│   ├── history.ts          # История просмотров (localStorage)
+│   ├── rbac.ts             # Хелперы ролей
+│   └── useDebounce.ts      # Debounce хук
+├── pages/
+│   ├── KBListPage.tsx      # Список статей
+│   ├── KBArticlePage.tsx   # Просмотр статьи
+│   ├── KBEditorPage.tsx    # Редактор Markdown
+│   ├── KBDictionariesPage.tsx
+│   ├── FavoritesPage.tsx   # Избранное (новое)
+│   ├── LoginPage.tsx
+│   ├── ProfilePage.tsx
+│   ├── UsersPage.tsx
+│   ├── AuditPage.tsx
+│   └── StatsPage.tsx
+├── store/
+│   ├── auth.ts             # Zustand + persist
+│   ├── theme.ts            # Тема (light/dark)
+│   └── favorites.ts        # Избранное (localStorage)
+├── styles/
+│   ├── tokens.css          # CSS custom properties (дизайн-токены)
+│   ├── global.css          # Глобальные стили + компоненты
+│   └── sidebar.css         # Стили сайдбара
+├── types/
+│   └── index.ts
+└── main.tsx
+```
+
+---
+
+## Deply
+
+### Vercel (рекомендуется)
+
+```bash
+# frontend
+vercel --prod
+
+# backend (отдельный проект или Render)
+```
+
+Подробнее: [VERCEL.md](./VERCEL.md)
+
+### Docker
+
+```bash
+docker compose up -d --build
+```
+
+---
+
+## Чеклист обновления
+
+- [x] Дизайн-система (CSS токены, темы, шрифты)
+- [x] Тёмная/светлая тема + prefers-color-scheme
+- [x] Сворачиваемый сайдбар
+- [x] Search modal (Ctrl+K)
+- [x] Skeleton loaders
+- [x] Pagination с ellipsis
+- [x] Избранное (хранение в localStorage)
+- [x] История просмотров (localStorage)
+- [x] ReadingProgress + BackToTop
+- [x] TOC с IntersectionObserver
+- [x] Копирование кода (code blocks)
+- [x] Scroll-reveal (IntersectionObserver)
+- [x] a11y: skip-link, focus-visible, aria-*
+- [x] Обновлены зависимости
+- [x] Оптимизированный vite.config
+- [ ] Service Worker (Workbox) — TODO
+- [ ] Fulltext search (Fuse.js) — TODO
+- [ ] URL-параметры для фильтров — TODO
+- [ ] E2E тесты (Playwright) — TODO

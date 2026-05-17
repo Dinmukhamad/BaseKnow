@@ -1,0 +1,4 @@
+User-agent: *
+Disallow: /
+
+# BaseKnow is an internal tool — no public indexing
