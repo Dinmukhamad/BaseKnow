@@ -21,13 +21,15 @@ app = FastAPI(
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 _origins = [str(o) for o in settings.cors_origins]
-_allow_credentials = "*" not in _origins  # credentials не работают с wildcard
+_is_wildcard = "*" in _origins
 
+# Always allow *.vercel.app via regex for seamless Vercel preview deployments.
+# When wildcard is set, use regex instead (credentials don't work with "*").
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_origins,
-    allow_origin_regex=r"https://.*\.vercel\.app" if "*" in _origins else None,
-    allow_credentials=_allow_credentials,
+    allow_origins=["*"] if _is_wildcard else _origins,
+    allow_origin_regex=r"https?://.*\.vercel\.app(:\d+)?$",
+    allow_credentials=False if _is_wildcard else True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
