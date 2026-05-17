@@ -1,10 +1,11 @@
-import MDEditor from '@uiw/react-md-editor'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Paperclip, Plus, Save, Trash2, X } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import api from '@/api/client'
 import type { KBArticle, KBDirection, KBTopic } from '@/types'
+
+const MDEditor = lazy(() => import('@uiw/react-md-editor'))
 
 export function KBEditorPage() {
   const { id } = useParams<{ id?: string }>()
@@ -126,7 +127,13 @@ export function KBEditorPage() {
           </div>
           <div className="panel-pad" data-color-mode="light">
             <label className="mb-1.5 block text-sm font-medium text-ink-700">Содержание</label>
-            <MDEditor value={content} onChange={(value) => setContent(value || '')} height={560} preview="edit" />
+            <Suspense fallback={
+                <div style={{height: 560, background: 'var(--color-surface-2)', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-tertiary)'}}>
+                  Загрузка редактора...
+                </div>
+              }>
+                <MDEditor value={content} onChange={(value) => setContent(value || '')} height={560} preview="edit" />
+              </Suspense>
           </div>
         </section>
 

@@ -4,40 +4,35 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    <!-- ─ Favicons ─ -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
-    <!-- ─ Preconnect to Google Fonts ─ -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 
-    <!-- ─ Primary title / meta (pages override via React Helmet) ─ -->
     <title>BaseKnow — База знаний</title>
     <meta name="description" content="Внутренняя база знаний контакт-центра: инструкции, процедуры и справочные материалы." />
     <meta name="robots" content="noindex, nofollow" />
     <meta name="theme-color" content="#1d68f0" />
     <meta name="color-scheme" content="light dark" />
 
-    <!-- ─ Open Graph ─ -->
     <meta property="og:type"        content="website" />
     <meta property="og:title"       content="BaseKnow — База знаний" />
     <meta property="og:description" content="Внутренняя база знаний контакт-центра" />
     <meta property="og:locale"      content="ru_RU" />
 
-    <!-- ─ Critical inline CSS (theme flash prevention) ─ -->
-    <style>
-      /* Apply stored theme before React renders to prevent flash */
-      (function() {
-        try {
-          var t = localStorage.getItem('bk-theme');
-          if (t) document.documentElement.setAttribute('data-theme', t);
-          else if (window.matchMedia('(prefers-color-scheme: dark)').matches)
-            document.documentElement.setAttribute('data-theme', 'dark');
-        } catch(e) {}
-      })();
+    <!-- Theme init: runs before render to prevent flash -->
+    <script>
+      try {
+        var t = localStorage.getItem('bk-theme');
+        if (t) document.documentElement.setAttribute('data-theme', t);
+        else if (window.matchMedia('(prefers-color-scheme: dark)').matches)
+          document.documentElement.setAttribute('data-theme', 'dark');
+      } catch(e) {}
+    </script>
 
-      /* Minimal critical CSS to avoid FOUC */
+    <!-- Critical CSS -->
+    <style>
       *, *::before, *::after { box-sizing: border-box; }
       html, body, #root { height: 100%; margin: 0; }
       body {
@@ -49,26 +44,17 @@
         background: #07101a;
         color: #f6f7f9;
       }
+      .skip-link {
+        position: absolute; top: -100%; left: 16px; z-index: 9999;
+        padding: 8px 16px; background: #1d68f0; color: #fff;
+        border-radius: 8px; text-decoration: none;
+      }
+      .skip-link:focus { top: 16px; }
     </style>
   </head>
   <body>
-    <!-- Skip to main content (a11y) -->
     <a href="#main-content" class="skip-link">Перейти к содержимому</a>
-
     <div id="root"></div>
-
-    <!-- Theme init script (must run ASAP) -->
-    <script>
-      try {
-        var stored = localStorage.getItem('bk-theme');
-        if (stored) {
-          document.documentElement.setAttribute('data-theme', stored);
-        } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-          document.documentElement.setAttribute('data-theme', 'dark');
-        }
-      } catch(e) {}
-    </script>
-
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

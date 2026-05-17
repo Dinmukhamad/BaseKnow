@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     def normalize_database_url(cls, value: str) -> str:
         if not value:
             return value
-        # Use psycopg2 driver — better compatibility with Neon/Vercel Postgres
+        # Use psycopg2 driver — better compatibility with Neon/Vercel Postgres (redeploy)
         if value.startswith("postgres://"):
             value = value.replace("postgres://", "postgresql+psycopg2://", 1)
         elif value.startswith("postgresql://") and "+psycopg2" not in value:
@@ -54,13 +54,12 @@ class Settings(BaseSettings):
             pass
         return [origin.strip() for origin in value.split(",") if origin.strip()]
 
-    # Cloudflare R2
-    r2_account_id: str = Field(..., alias="R2_ACCOUNT_ID")
-    r2_access_key_id: str = Field(..., alias="R2_ACCESS_KEY_ID")
-    r2_secret_access_key: str = Field(..., alias="R2_SECRET_ACCESS_KEY")
-    r2_bucket_name: str = Field(..., alias="R2_BUCKET_NAME")
-    # Public domain of the bucket, e.g. https://pub-xxx.r2.dev
-    r2_public_url: str = Field(..., alias="R2_PUBLIC_URL")
+    # Cloudflare R2 — optional, only required for file upload functionality
+    r2_account_id: str = Field(default="", alias="R2_ACCOUNT_ID")
+    r2_access_key_id: str = Field(default="", alias="R2_ACCESS_KEY_ID")
+    r2_secret_access_key: str = Field(default="", alias="R2_SECRET_ACCESS_KEY")
+    r2_bucket_name: str = Field(default="", alias="R2_BUCKET_NAME")
+    r2_public_url: str = Field(default="", alias="R2_PUBLIC_URL")
 
     seed_admin_username: str = "admin"
     seed_admin_email: str = "admin@example.com"
