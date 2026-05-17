@@ -122,7 +122,6 @@ def delete_attachment(
 @router.post("/articles/bulk-delete", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_permissions(Permission.KB_MANAGE))])
 def bulk_delete_articles(
     ids: list[str] = Body(..., embed=True),
-    current_user: CurrentUser = Depends(lambda: None),
     context: AuditContext = Depends(get_audit_context),
     db: Session = Depends(get_db),
 ):
@@ -138,7 +137,6 @@ def bulk_delete_articles(
 @router.post("/articles/bulk-outdated", dependencies=[Depends(require_permissions(Permission.KB_MANAGE))])
 def bulk_mark_outdated(
     ids: list[str] = Body(..., embed=True),
-    current_user: CurrentUser = Depends(lambda: None),
     context: AuditContext = Depends(get_audit_context),
     db: Session = Depends(get_db),
 ):
