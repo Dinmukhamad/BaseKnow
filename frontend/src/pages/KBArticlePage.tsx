@@ -48,9 +48,9 @@ export function KBArticlePage() {
   useEffect(() => {
     if (!article.data) return
     const timer = setTimeout(() => {
-      document.querySelectorAll('.article-body pre').forEach(pre => {
+      document.querySelectorAll<HTMLElement>('.article-body pre').forEach(pre => {
         if (pre.querySelector('.code-copy-btn')) return
-        const code = pre.querySelector('code')?.innerText ?? ''
+        const code = (pre.querySelector('code') as HTMLElement | null)?.innerText ?? ''
         const btn = document.createElement('button')
         btn.className = 'code-copy-btn'
         btn.textContent = 'Копировать'
