@@ -5,10 +5,21 @@ import api from '@/api/client'
 import { useAuthStore } from '@/store/auth'
 import { useDebounce } from '@/lib/useDebounce'
 import { useToast } from '@/components/Toast'
+import { Pagination } from '@/components/Pagination'
 import type { PaginatedResponse, Role, User } from '@/types'
 
-const roleLabels: Record<Role, string> = { operator: 'Оператор', supervisor: 'Супервизор', admin: 'Администратор' }
-const roleColors: Record<Role, string> = { operator: 'bg-surface-100 text-ink-600', supervisor: 'bg-blue-50 text-blue-700', admin: 'bg-brand-50 text-brand-700' }
+const roleLabels: Record<Role, string> = {
+  operator: 'Оператор',
+  supervisor: 'Супервизор',
+  admin: 'Администратор',
+}
+
+const rolePillClass: Record<Role, string> = {
+  operator: 'pill pill-neutral',
+  supervisor: 'pill pill-info',
+  admin: 'pill pill-brand',
+}
+
 const emptyCreate = { email: '', username: '', full_name: '', password: '', role: 'operator' as Role }
 type EditForm = { email: string; full_name: string; role: Role; is_active: boolean; password: string }
 
@@ -21,7 +32,9 @@ export function UsersPage() {
   const [page, setPage] = useState(1)
   const [createForm, setCreateForm] = useState(emptyCreate)
   const [editingUser, setEditingUser] = useState<User | null>(null)
-  const [editForm, setEditForm] = useState<EditForm>({ email: '', full_name: '', role: 'operator', is_active: true, password: '' })
+  const [editForm, setEditForm] = useState<EditForm>({
+    email: '', full_name: '', role: 'operator', is_active: true, password: '',
+  })
   const [deletingUser, setDeletingUser] = useState<User | null>(null)
   const [deleteMode, setDeleteMode] = useState<'deactivate' | 'delete'>('deactivate')
 
@@ -30,31 +43,45 @@ export function UsersPage() {
     queryFn: () => {
       const params = new URLSearchParams({ page: String(page), page_size: '20' })
       if (search) params.set('query', search)
-      return api.get<PaginatedResponse<User>>(`/users?${params}`).then(r => r.data)
+      return api.get<PaginatedResponse<User>>(`/users?${params}`).then((r) => r.data)
     },
-    placeholderData: prev => prev,
+    placeholderData: (prev) => prev,
   })
 
   const createUser = useMutation({
     mutationFn: () => api.post('/users', createForm),
-    onSuccess: () => { setCreateForm(emptyCreate); success('Пользователь создан'); queryClient.invalidateQueries({ queryKey: ['users'] }) },
+    onSuccess: () => {
+      setCreateForm(emptyCreate)
+      success('Пользователь создан')
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+    },
     onError: (e: any) => error(e?.response?.data?.detail || 'Ошибка создания'),
   })
 
   const updateUser = useMutation({
     mutationFn: () => {
-      const payload: Record<string, unknown> = { email: editForm.email, full_name: editForm.full_name, role: editForm.role, is_active: editForm.is_active }
+      const payload: Record<string, unknown> = {
+        email: editForm.email,
+        full_name: editForm.full_name,
+        role: editForm.role,
+        is_active: editForm.is_active,
+      }
       if (editForm.password) payload.password = editForm.password
       return api.patch(`/users/${editingUser!.id}`, payload)
     },
-    onSuccess: () => { setEditingUser(null); success('Изменения сохранены'); queryClient.invalidateQueries({ queryKey: ['users'] }) },
+    onSuccess: () => {
+      setEditingUser(null)
+      success('Изменения сохранены')
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+    },
     onError: (e: any) => error(e?.response?.data?.detail || 'Ошибка'),
   })
 
   const handleDelete = useMutation({
-    mutationFn: () => deleteMode === 'deactivate'
-      ? api.patch(`/users/${deletingUser!.id}`, { is_active: false })
-      : api.delete(`/users/${deletingUser!.id}`),
+    mutationFn: () =>
+      deleteMode === 'deactivate'
+        ? api.patch(`/users/${deletingUser!.id}`, { is_active: false })
+        : api.delete(`/users/${deletingUser!.id}`),
     onSuccess: () => {
       setDeletingUser(null)
       success(deleteMode === 'deactivate' ? 'Пользователь деактивирован' : 'Пользователь удалён')
@@ -63,81 +90,200 @@ export function UsersPage() {
     onError: (e: any) => error(e?.response?.data?.detail || 'Ошибка'),
   })
 
-  const openEdit = (u: User) => { setEditingUser(u); setEditForm({ email: u.email, full_name: u.full_name, role: u.role, is_active: u.is_active, password: '' }) }
+  const openEdit = (u: User) => {
+    setEditingUser(u)
+    setEditForm({ email: u.email, full_name: u.full_name, role: u.role, is_active: u.is_active, password: '' })
+  }
 
   const items = users.data?.items ?? []
 
   return (
-    <div className="page-shell">
+    <div className="page-container">
       <header className="page-header">
-        <div className="flex items-center gap-3">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
           <div className="icon-tile"><Users size={20} /></div>
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-ink-900">Пользователи</h1>
-            <p className="text-sm text-ink-500">Управление учётными записями и ролями</p>
+            <h1 style={{
+              fontFamily: 'var(--font-display)', fontSize: 'var(--text-2xl)',
+              fontWeight: 800, letterSpacing: '-0.03em',
+            }}>
+              Пользователи
+            </h1>
+            <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-tertiary)', marginTop: 2 }}>
+              Управление учётными записями и ролями
+            </p>
           </div>
         </div>
-        {users.data && <span className="rounded-full border border-surface-200 bg-white px-3 py-1.5 text-sm text-ink-500">{users.data.total} пользователей</span>}
+        {users.data && (
+          <span className="pill pill-neutral">{users.data.total} пользователей</span>
+        )}
       </header>
 
       {/* Create form */}
-      <div className="panel-pad mb-4">
-        <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-ink-900"><UserPlus size={16} className="text-brand-700" />Новый пользователь</div>
-        <div className="grid gap-3 lg:grid-cols-5">
-          <input value={createForm.email} onChange={e => setCreateForm({ ...createForm, email: e.target.value })} placeholder="Email" className="field" />
-          <input value={createForm.username} onChange={e => setCreateForm({ ...createForm, username: e.target.value })} placeholder="Логин" className="field" />
-          <input value={createForm.full_name} onChange={e => setCreateForm({ ...createForm, full_name: e.target.value })} placeholder="ФИО" className="field" />
-          <input value={createForm.password} onChange={e => setCreateForm({ ...createForm, password: e.target.value })} placeholder="Пароль" type="password" className="field" />
-          <div className="flex gap-2">
-            <select value={createForm.role} onChange={e => setCreateForm({ ...createForm, role: e.target.value as Role })} className="field min-w-0 flex-1">
+      <div className="card card-pad" style={{ marginBottom: 'var(--space-4)' }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 'var(--space-2)',
+          marginBottom: 'var(--space-3)', fontSize: 'var(--text-sm)', fontWeight: 600,
+          color: 'var(--color-text-primary)',
+        }}>
+          <UserPlus size={16} color="var(--color-brand-text)" />
+          Новый пользователь
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 'var(--space-3)' }}>
+          <input
+            value={createForm.email}
+            onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
+            placeholder="Email"
+            className="field"
+          />
+          <input
+            value={createForm.username}
+            onChange={(e) => setCreateForm({ ...createForm, username: e.target.value })}
+            placeholder="Логин"
+            className="field"
+          />
+          <input
+            value={createForm.full_name}
+            onChange={(e) => setCreateForm({ ...createForm, full_name: e.target.value })}
+            placeholder="ФИО"
+            className="field"
+          />
+          <input
+            value={createForm.password}
+            onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
+            placeholder="Пароль"
+            type="password"
+            className="field"
+          />
+          <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+            <select
+              value={createForm.role}
+              onChange={(e) => setCreateForm({ ...createForm, role: e.target.value as Role })}
+              className="field"
+              style={{ flex: 1, minWidth: 0 }}
+            >
               <option value="operator">Оператор</option>
               <option value="supervisor">Супервизор</option>
               <option value="admin">Администратор</option>
             </select>
-            <button onClick={() => createUser.mutate()} disabled={createUser.isPending || !createForm.email || !createForm.username || !createForm.password} className="btn-primary">Создать</button>
+            <button
+              onClick={() => createUser.mutate()}
+              disabled={
+                createUser.isPending || !createForm.email || !createForm.username || !createForm.password
+              }
+              className="btn btn-primary"
+            >
+              Создать
+            </button>
           </div>
         </div>
       </div>
 
       {/* Search */}
-      <div className="panel-pad mb-4">
-        <div className="relative">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-400" />
-          <input value={searchInput} onChange={e => { setSearchInput(e.target.value); setPage(1) }} placeholder="Поиск по имени, email или логину" className="field w-full pl-9" />
+      <div className="card card-pad" style={{ marginBottom: 'var(--space-4)' }}>
+        <div className="field-group" style={{ flexDirection: 'row' }}>
+          <div style={{ position: 'relative', flex: 1 }}>
+            <span className="field-icon-slot left" aria-hidden="true">
+              <Search size={15} />
+            </span>
+            <input
+              value={searchInput}
+              onChange={(e) => { setSearchInput(e.target.value); setPage(1) }}
+              placeholder="Поиск по имени, email или логину"
+              className="field field-icon-left"
+              style={{ width: '100%' }}
+            />
+            {searchInput && (
+              <button
+                onClick={() => { setSearchInput(''); setPage(1) }}
+                aria-label="Очистить поиск"
+                style={{
+                  position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  color: 'var(--color-text-tertiary)', display: 'flex',
+                }}
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Table */}
-      <section className={`panel overflow-hidden transition-opacity ${users.isFetching ? 'opacity-70' : ''}`}>
-        <table className="w-full">
-          <thead className="bg-surface-50 text-left text-xs uppercase tracking-wide text-ink-500">
+      <div
+        className="card"
+        style={{ overflow: 'hidden', opacity: users.isFetching ? 0.7 : 1, transition: 'opacity var(--duration-normal)' }}
+      >
+        <table className="data-table" role="table" aria-label="Список пользователей">
+          <thead>
             <tr>
-              <th className="px-5 py-3 font-semibold">Пользователь</th>
-              <th className="px-5 py-3 font-semibold">Логин</th>
-              <th className="px-5 py-3 font-semibold">Роль</th>
-              <th className="px-5 py-3 font-semibold">Статус</th>
-              <th className="px-5 py-3 font-semibold">Последний вход</th>
-              <th className="px-5 py-3 font-semibold"></th>
+              <th>Пользователь</th>
+              <th>Логин</th>
+              <th>Роль</th>
+              <th>Статус</th>
+              <th>Последний вход</th>
+              <th style={{ width: 80 }}></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-surface-100">
-            {items.map(u => (
-              <tr key={u.id} className={`hover:bg-surface-50 ${!u.is_active ? 'opacity-50' : ''}`}>
-                <td className="px-5 py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-50 text-xs font-semibold text-brand-700">{u.full_name.slice(0, 1).toUpperCase()}</div>
-                    <div><div className="text-sm font-medium text-ink-900">{u.full_name}</div><div className="text-xs text-ink-500">{u.email}</div></div>
+          <tbody>
+            {items.map((u) => (
+              <tr key={u.id} style={{ opacity: u.is_active ? 1 : 0.5 }}>
+                <td>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+                    <div style={{
+                      width: 32, height: 32, flexShrink: 0, borderRadius: '50%',
+                      background: 'var(--color-brand-muted)', color: 'var(--color-brand-text)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontFamily: 'var(--font-display)', fontSize: 'var(--text-xs)', fontWeight: 700,
+                    }}>
+                      {u.full_name.slice(0, 1).toUpperCase()}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                        {u.full_name}
+                      </div>
+                      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-tertiary)' }}>
+                        {u.email}
+                      </div>
+                    </div>
                   </div>
                 </td>
-                <td className="px-5 py-4 font-mono text-sm text-ink-500">{u.username}</td>
-                <td className="px-5 py-4"><span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${roleColors[u.role]}`}><Shield size={10} />{roleLabels[u.role]}</span></td>
-                <td className="px-5 py-4"><span className={`rounded-full px-2.5 py-1 text-xs font-medium ${u.is_active ? 'bg-green-50 text-green-700' : 'bg-surface-100 text-ink-500'}`}>{u.is_active ? 'Активен' : 'Отключён'}</span></td>
-                <td className="px-5 py-4 text-xs text-ink-500">{u.last_login_at ? new Date(u.last_login_at).toLocaleString('ru') : '—'}</td>
-                <td className="px-5 py-4">
-                  <div className="flex items-center justify-end gap-1">
-                    <button onClick={() => openEdit(u)} className="rounded p-1.5 text-ink-400 hover:bg-surface-100 hover:text-ink-700" title="Редактировать"><Edit2 size={15} /></button>
+                <td style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-sm)', color: 'var(--color-text-secondary)' }}>
+                  {u.username}
+                </td>
+                <td>
+                  <span className={rolePillClass[u.role]}>
+                    <Shield size={10} aria-hidden="true" />
+                    {roleLabels[u.role]}
+                  </span>
+                </td>
+                <td>
+                  <span className={u.is_active ? 'pill pill-success' : 'pill pill-neutral'}>
+                    {u.is_active ? 'Активен' : 'Отключён'}
+                  </span>
+                </td>
+                <td style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-tertiary)', whiteSpace: 'nowrap' }}>
+                  {u.last_login_at ? new Date(u.last_login_at).toLocaleString('ru') : '—'}
+                </td>
+                <td>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 'var(--space-1)' }}>
+                    <button
+                      onClick={() => openEdit(u)}
+                      className="btn btn-ghost btn-icon"
+                      title="Редактировать"
+                    >
+                      <Edit2 size={15} />
+                    </button>
                     {u.id !== me?.id && (
-                      <button onClick={() => { setDeletingUser(u); setDeleteMode('deactivate') }} className="rounded p-1.5 text-ink-400 hover:bg-red-50 hover:text-red-600" title="Удалить/деактивировать"><Trash2 size={15} /></button>
+                      <button
+                        onClick={() => { setDeletingUser(u); setDeleteMode('deactivate') }}
+                        className="btn btn-ghost btn-icon"
+                        title="Деактивировать / удалить"
+                        style={{ color: 'var(--color-error-text)' }}
+                      >
+                        <Trash2 size={15} />
+                      </button>
                     )}
                   </div>
                 </td>
@@ -145,42 +291,105 @@ export function UsersPage() {
             ))}
           </tbody>
         </table>
-        {!users.isLoading && !items.length && <div className="py-20 text-center text-sm text-ink-500">Пользователи не найдены</div>}
-      </section>
+        {!users.isLoading && !items.length && (
+          <div className="empty-state">
+            <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>Пользователи не найдены</div>
+          </div>
+        )}
+      </div>
 
       {/* Pagination */}
-      {users.data && users.data.pages > 1 && (
-        <div className="mt-4 flex justify-center gap-2">
-          {Array.from({ length: users.data.pages }, (_, i) => i + 1).map(p => (
-            <button key={p} onClick={() => setPage(p)} className={`h-9 min-w-9 rounded-lg px-3 text-sm font-medium ${p === page ? 'bg-brand-600 text-white' : 'border border-surface-200 bg-white text-ink-500'}`}>{p}</button>
-          ))}
-        </div>
+      {users.data && (
+        <Pagination
+          page={page}
+          pages={users.data.pages}
+          total={users.data.total}
+          onPage={(p) => { setPage(p); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
+        />
       )}
 
       {/* Edit modal */}
       {editingUser && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
-          <div className="panel-pad w-full max-w-md rounded-xl bg-white">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-base font-semibold text-ink-900">Редактировать пользователя</h2>
-              <button onClick={() => setEditingUser(null)} className="rounded p-1 text-ink-400 hover:text-ink-700"><X size={18} /></button>
+        <div className="modal-backdrop">
+          <div className="modal-panel">
+            <div className="modal-header">
+              <h2 style={{ fontSize: 'var(--text-base)', fontWeight: 700 }}>
+                Редактировать: {editingUser.full_name}
+              </h2>
+              <button onClick={() => setEditingUser(null)} className="btn btn-ghost btn-icon">
+                <X size={16} />
+              </button>
             </div>
-            <div className="space-y-3">
-              <div><label className="mb-1 block text-xs font-medium text-ink-600">Email</label><input value={editForm.email} onChange={e => setEditForm({ ...editForm, email: e.target.value })} className="field w-full" /></div>
-              <div><label className="mb-1 block text-xs font-medium text-ink-600">ФИО</label><input value={editForm.full_name} onChange={e => setEditForm({ ...editForm, full_name: e.target.value })} className="field w-full" /></div>
-              <div><label className="mb-1 block text-xs font-medium text-ink-600">Роль</label>
-                <select value={editForm.role} onChange={e => setEditForm({ ...editForm, role: e.target.value as Role })} className="field w-full">
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+              <div>
+                <label className="field-label" htmlFor="edit-fullname">ФИО</label>
+                <input
+                  id="edit-fullname"
+                  value={editForm.full_name}
+                  onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })}
+                  className="field"
+                />
+              </div>
+              <div>
+                <label className="field-label" htmlFor="edit-email">Email</label>
+                <input
+                  id="edit-email"
+                  value={editForm.email}
+                  onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                  type="email"
+                  className="field"
+                />
+              </div>
+              <div>
+                <label className="field-label" htmlFor="edit-role">Роль</label>
+                <select
+                  id="edit-role"
+                  value={editForm.role}
+                  onChange={(e) => setEditForm({ ...editForm, role: e.target.value as Role })}
+                  className="field"
+                >
                   <option value="operator">Оператор</option>
                   <option value="supervisor">Супервизор</option>
                   <option value="admin">Администратор</option>
                 </select>
               </div>
-              <div><label className="mb-1 block text-xs font-medium text-ink-600">Новый пароль (оставьте пустым)</label><input value={editForm.password} onChange={e => setEditForm({ ...editForm, password: e.target.value })} type="password" placeholder="••••••••" className="field w-full" /></div>
-              <label className="flex items-center gap-2 text-sm text-ink-700"><input type="checkbox" checked={editForm.is_active} onChange={e => setEditForm({ ...editForm, is_active: e.target.checked })} className="h-4 w-4" />Активный аккаунт</label>
+              <label style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: 'var(--space-2) var(--space-3)',
+                background: 'var(--color-surface-2)', borderRadius: 'var(--radius-md)',
+                fontSize: 'var(--text-sm)', cursor: 'pointer',
+              }}>
+                <span>Активен</span>
+                <input
+                  type="checkbox"
+                  checked={editForm.is_active}
+                  onChange={(e) => setEditForm({ ...editForm, is_active: e.target.checked })}
+                  style={{ width: 16, height: 16, cursor: 'pointer', accentColor: 'var(--color-brand)' }}
+                />
+              </label>
+              <div>
+                <label className="field-label" htmlFor="edit-password">Новый пароль (необязательно)</label>
+                <input
+                  id="edit-password"
+                  value={editForm.password}
+                  onChange={(e) => setEditForm({ ...editForm, password: e.target.value })}
+                  type="password"
+                  className="field"
+                  placeholder="Оставьте пустым, чтобы не менять"
+                />
+              </div>
             </div>
-            <div className="mt-5 flex justify-end gap-3">
-              <button onClick={() => setEditingUser(null)} className="btn-secondary">Отмена</button>
-              <button onClick={() => updateUser.mutate()} disabled={updateUser.isPending} className="btn-primary">Сохранить</button>
+            <div className="modal-footer">
+              <button onClick={() => setEditingUser(null)} className="btn btn-secondary">
+                Отмена
+              </button>
+              <button
+                onClick={() => updateUser.mutate()}
+                disabled={updateUser.isPending}
+                className="btn btn-primary"
+              >
+                Сохранить
+              </button>
             </div>
           </div>
         </div>
@@ -188,24 +397,65 @@ export function UsersPage() {
 
       {/* Delete/deactivate modal */}
       {deletingUser && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
-          <div className="panel-pad w-full max-w-sm rounded-xl bg-white">
-            <h2 className="mb-2 text-base font-semibold text-ink-900">Что сделать с пользователем?</h2>
-            <p className="mb-4 text-sm text-ink-500"><span className="font-medium text-ink-700">{deletingUser.full_name}</span></p>
-            <div className="mb-5 space-y-2">
-              <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-surface-200 p-3 hover:bg-surface-50">
-                <input type="radio" name="mode" checked={deleteMode === 'deactivate'} onChange={() => setDeleteMode('deactivate')} className="mt-0.5" />
-                <div><div className="flex items-center gap-1.5 text-sm font-medium text-ink-900"><UserMinus size={14} />Деактивировать</div><div className="text-xs text-ink-500">Пользователь не сможет войти, данные сохранятся</div></div>
+        <div className="modal-backdrop">
+          <div className="modal-panel">
+            <div className="modal-header">
+              <h2 style={{ fontSize: 'var(--text-base)', fontWeight: 700 }}>
+                Действие с пользователем
+              </h2>
+            </div>
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+              <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-secondary)' }}>
+                {deletingUser.full_name} · {deletingUser.email}
+              </p>
+              <label style={{
+                display: 'flex', alignItems: 'center', gap: 'var(--space-2)',
+                padding: 'var(--space-3)', background: 'var(--color-surface-2)',
+                borderRadius: 'var(--radius-md)', cursor: 'pointer', fontSize: 'var(--text-sm)',
+              }}>
+                <input
+                  type="radio"
+                  name="deleteMode"
+                  value="deactivate"
+                  checked={deleteMode === 'deactivate'}
+                  onChange={() => setDeleteMode('deactivate')}
+                  style={{ accentColor: 'var(--color-brand)' }}
+                />
+                <div>
+                  <div style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>Деактивировать</div>
+                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-tertiary)' }}>Пользователь не сможет войти, данные сохранятся</div>
+                </div>
               </label>
-              <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-red-100 p-3 hover:bg-red-50">
-                <input type="radio" name="mode" checked={deleteMode === 'delete'} onChange={() => setDeleteMode('delete')} className="mt-0.5" />
-                <div><div className="flex items-center gap-1.5 text-sm font-medium text-red-700"><Trash2 size={14} />Удалить полностью</div><div className="text-xs text-ink-500">Необратимое удаление аккаунта</div></div>
+              <label style={{
+                display: 'flex', alignItems: 'center', gap: 'var(--space-2)',
+                padding: 'var(--space-3)', background: 'var(--color-error-bg)',
+                border: '1px solid var(--color-error-border)',
+                borderRadius: 'var(--radius-md)', cursor: 'pointer', fontSize: 'var(--text-sm)',
+              }}>
+                <input
+                  type="radio"
+                  name="deleteMode"
+                  value="delete"
+                  checked={deleteMode === 'delete'}
+                  onChange={() => setDeleteMode('delete')}
+                  style={{ accentColor: 'var(--color-error-icon)' }}
+                />
+                <div>
+                  <div style={{ fontWeight: 600, color: 'var(--color-error-text)' }}>Удалить навсегда</div>
+                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-error-text)', opacity: 0.8 }}>Данные будут удалены безвозвратно</div>
+                </div>
               </label>
             </div>
-            <div className="flex justify-end gap-3">
-              <button onClick={() => setDeletingUser(null)} className="btn-secondary">Отмена</button>
-              <button onClick={() => handleDelete.mutate()} disabled={handleDelete.isPending}
-                className={`rounded-lg px-4 py-2 text-sm font-medium text-white disabled:opacity-50 ${deleteMode === 'delete' ? 'bg-red-600 hover:bg-red-700' : 'bg-amber-600 hover:bg-amber-700'}`}>
+            <div className="modal-footer">
+              <button onClick={() => setDeletingUser(null)} className="btn btn-secondary">
+                Отмена
+              </button>
+              <button
+                onClick={() => handleDelete.mutate()}
+                disabled={handleDelete.isPending}
+                className={deleteMode === 'delete' ? 'btn btn-danger' : 'btn btn-secondary'}
+              >
+                {deleteMode === 'deactivate' ? <UserMinus size={15} /> : <Trash2 size={15} />}
                 {deleteMode === 'deactivate' ? 'Деактивировать' : 'Удалить'}
               </button>
             </div>

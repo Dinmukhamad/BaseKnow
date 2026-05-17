@@ -20,22 +20,25 @@ export function KBEditorPage() {
   const [link, setLink] = useState('')
   const [links, setLinks] = useState<string[]>([])
   const [file, setFile] = useState<File | null>(null)
-  const [error, setError] = useState('')
+  const [errorMsg, setErrorMsg] = useState('')
 
   const article = useQuery({
     queryKey: ['kb-article', id],
-    queryFn: () => api.get<KBArticle>(`/kb/articles/${id}`).then((response) => response.data),
+    queryFn: () => api.get<KBArticle>(`/kb/articles/${id}`).then((r) => r.data),
     enabled: isEditing,
   })
 
   const directions = useQuery({
     queryKey: ['kb-directions'],
-    queryFn: () => api.get<KBDirection[]>('/kb/directions?is_active=true').then((response) => response.data),
+    queryFn: () => api.get<KBDirection[]>('/kb/directions?is_active=true').then((r) => r.data),
   })
 
   const topics = useQuery({
     queryKey: ['kb-topics', directionId],
-    queryFn: () => api.get<KBTopic[]>(`/kb/topics?is_active=true${directionId ? `&direction_id=${directionId}` : ''}`).then((response) => response.data),
+    queryFn: () =>
+      api
+        .get<KBTopic[]>(`/kb/topics?is_active=true${directionId ? `&direction_id=${directionId}` : ''}`)
+        .then((r) => r.data),
   })
 
   useEffect(() => {
@@ -50,12 +53,13 @@ export function KBEditorPage() {
   }, [article.data])
 
   const saveArticle = useMutation({
-    mutationFn: (payload: Record<string, unknown>) => (isEditing ? api.patch(`/kb/articles/${id}`, payload) : api.post('/kb/articles', payload)),
+    mutationFn: (payload: Record<string, unknown>) =>
+      isEditing ? api.patch(`/kb/articles/${id}`, payload) : api.post('/kb/articles', payload),
     onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: ['kb-articles'] })
       navigate(`/kb/${isEditing ? id : response.data.id}`)
     },
-    onError: () => setError('Не удалось сохранить статью'),
+    onError: () => setErrorMsg('Не удалось сохранить статью'),
   })
 
   const deleteAttachment = useMutation({
@@ -68,7 +72,9 @@ export function KBEditorPage() {
       if (!file || !id) return
       const data = new FormData()
       data.append('file', file)
-      return api.post(`/kb/articles/${id}/attachments`, data, { headers: { 'Content-Type': 'multipart/form-data' } })
+      return api.post(`/kb/articles/${id}/attachments`, data, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
     },
     onSuccess: () => {
       setFile(null)
@@ -77,9 +83,9 @@ export function KBEditorPage() {
   })
 
   const handleSave = () => {
-    setError('')
+    setErrorMsg('')
     if (!title.trim() || !content.trim()) {
-      setError('Заполните заголовок и содержание')
+      setErrorMsg('Заполните заголовок и содержание')
       return
     }
     saveArticle.mutate({
@@ -94,89 +100,169 @@ export function KBEditorPage() {
 
   const addLink = () => {
     if (!link.trim()) return
-    setLinks((current) => [...current, link.trim()])
+    setLinks((cur) => [...cur, link.trim()])
     setLink('')
   }
 
   return (
-    <div className="page-shell">
+    <div className="page-container">
       <header className="page-header">
-        <div className="flex items-center gap-3">
-          <button onClick={() => navigate(-1)} className="btn-secondary">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+          <button onClick={() => navigate(-1)} className="btn btn-secondary">
             <ArrowLeft size={16} />
             Назад
           </button>
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-ink-900">{isEditing ? 'Редактирование статьи' : 'Новая статья'}</h1>
-            <p className="text-sm text-ink-500">Markdown, вложения, ссылки и признаки актуальности</p>
+            <h1 style={{
+              fontFamily: 'var(--font-display)', fontSize: 'var(--text-2xl)',
+              fontWeight: 800, letterSpacing: '-0.03em',
+            }}>
+              {isEditing ? 'Редактирование статьи' : 'Новая статья'}
+            </h1>
+            <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-tertiary)', marginTop: 2 }}>
+              Markdown, вложения, ссылки и признаки актуальности
+            </p>
           </div>
         </div>
-        <button onClick={handleSave} disabled={saveArticle.isPending} className="btn-primary">
+        <button onClick={handleSave} disabled={saveArticle.isPending} className="btn btn-primary">
           <Save size={16} />
           Сохранить
         </button>
       </header>
 
-      {error && <div className="mb-4 rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+      {errorMsg && (
+        <div className="alert alert-error" style={{ marginBottom: 'var(--space-4)' }}>
+          {errorMsg}
+        </div>
+      )}
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
-        <section className="space-y-4">
-          <div className="panel-pad">
-            <label className="mb-1.5 block text-sm font-medium text-ink-700">Заголовок</label>
-            <input value={title} onChange={(event) => setTitle(event.target.value)} className="field w-full" placeholder="Короткий понятный заголовок" />
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: '1fr 320px',
+        gap: 'var(--space-4)',
+        alignItems: 'start',
+      }}>
+        {/* ── Main editor column ── */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+          <div className="card card-pad">
+            <label className="field-label" htmlFor="article-title">Заголовок</label>
+            <input
+              id="article-title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="field"
+              placeholder="Короткий понятный заголовок"
+            />
           </div>
-          <div className="panel-pad" data-color-mode="light">
-            <label className="mb-1.5 block text-sm font-medium text-ink-700">Содержание</label>
+
+          <div className="card card-pad" data-color-mode="light">
+            <label className="field-label">Содержание</label>
             <Suspense fallback={
-                <div style={{height: 560, background: 'var(--color-surface-2)', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-tertiary)'}}>
-                  Загрузка редактора...
-                </div>
-              }>
-                <MDEditor value={content} onChange={(value) => setContent(value || '')} height={560} preview="edit" />
-              </Suspense>
+              <div style={{
+                height: 560, background: 'var(--color-surface-2)',
+                borderRadius: 'var(--radius-md)', display: 'flex',
+                alignItems: 'center', justifyContent: 'center',
+                color: 'var(--color-text-tertiary)', fontSize: 'var(--text-sm)',
+              }}>
+                Загрузка редактора...
+              </div>
+            }>
+              <MDEditor value={content} onChange={(v) => setContent(v || '')} height={560} preview="edit" />
+            </Suspense>
           </div>
-        </section>
+        </div>
 
-        <aside className="space-y-4">
-          <div className="panel-pad">
-            <h3 className="mb-4 text-sm font-semibold text-ink-900">Параметры</h3>
-            <label className="mb-4 flex items-center justify-between rounded-lg bg-surface-50 px-3 py-2 text-sm text-ink-700">
+        {/* ── Sidebar column ── */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+
+          {/* Parameters */}
+          <div className="card card-pad">
+            <div className="section-label">Параметры</div>
+
+            <label style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: 'var(--space-2) var(--space-3)',
+              background: 'var(--color-surface-2)',
+              borderRadius: 'var(--radius-md)',
+              fontSize: 'var(--text-sm)',
+              color: 'var(--color-text-primary)',
+              cursor: 'pointer',
+              marginBottom: 'var(--space-3)',
+            }}>
               <span>Актуальная статья</span>
-              <input type="checkbox" checked={isActual} onChange={(event) => setIsActual(event.target.checked)} className="h-4 w-4 rounded border-surface-300 text-brand-600" />
+              <input
+                type="checkbox"
+                checked={isActual}
+                onChange={(e) => setIsActual(e.target.checked)}
+                style={{ width: 16, height: 16, cursor: 'pointer', accentColor: 'var(--color-brand)' }}
+              />
             </label>
-            <label className="mb-4 block">
-              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-ink-500">Направление</span>
-              <select value={directionId} onChange={(event) => { setDirectionId(event.target.value); setTopicId('') }} className="field w-full">
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', marginBottom: 'var(--space-3)' }}>
+              <label className="field-label" htmlFor="editor-direction">Направление</label>
+              <select
+                id="editor-direction"
+                value={directionId}
+                onChange={(e) => { setDirectionId(e.target.value); setTopicId('') }}
+                className="field"
+              >
                 <option value="">Не выбрано</option>
-                {directions.data?.map((direction) => (
-                  <option key={direction.id} value={direction.id}>{direction.name}</option>
+                {directions.data?.map((d) => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
                 ))}
               </select>
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-ink-500">Тематика</span>
-              <select value={topicId} onChange={(event) => setTopicId(event.target.value)} disabled={!directionId} className="field w-full disabled:opacity-50">
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
+              <label className="field-label" htmlFor="editor-topic">Тематика</label>
+              <select
+                id="editor-topic"
+                value={topicId}
+                onChange={(e) => setTopicId(e.target.value)}
+                disabled={!directionId}
+                className="field"
+              >
                 <option value="">Не выбрано</option>
-                {topics.data?.map((topic) => (
-                  <option key={topic.id} value={topic.id}>{topic.name}</option>
+                {topics.data?.map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
                 ))}
               </select>
-            </label>
+            </div>
           </div>
 
-          <div className="panel-pad">
-            <h3 className="mb-3 text-sm font-semibold text-ink-900">Ссылки</h3>
-            <div className="mb-3 flex gap-2">
-              <input value={link} onChange={(event) => setLink(event.target.value)} className="field min-w-0 flex-1" placeholder="https://..." />
-              <button onClick={addLink} className="btn-secondary px-3" title="Добавить ссылку">
+          {/* Links */}
+          <div className="card card-pad">
+            <div className="section-label">Ссылки</div>
+            <div style={{ display: 'flex', gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
+              <input
+                value={link}
+                onChange={(e) => setLink(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && addLink()}
+                className="field"
+                placeholder="https://..."
+                style={{ flex: 1, minWidth: 0 }}
+              />
+              <button onClick={addLink} className="btn btn-secondary btn-icon" title="Добавить ссылку">
                 <Plus size={16} />
               </button>
             </div>
-            <div className="space-y-2">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
               {links.map((item) => (
-                <div key={item} className="flex items-center gap-2 rounded-lg bg-surface-50 px-3 py-2 text-xs text-ink-700">
-                  <span className="min-w-0 flex-1 truncate">{item}</span>
-                  <button onClick={() => setLinks((current) => current.filter((value) => value !== item))} title="Удалить ссылку" className="text-ink-500 hover:text-accent-rose">
+                <div key={item} style={{
+                  display: 'flex', alignItems: 'center', gap: 'var(--space-2)',
+                  background: 'var(--color-surface-2)', border: '1px solid var(--color-border)',
+                  borderRadius: 'var(--radius-md)', padding: 'var(--space-2) var(--space-3)',
+                  fontSize: 'var(--text-xs)',
+                }}>
+                  <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--color-text-secondary)' }}>
+                    {item}
+                  </span>
+                  <button
+                    onClick={() => setLinks((cur) => cur.filter((v) => v !== item))}
+                    title="Удалить ссылку"
+                    className="btn btn-ghost btn-icon"
+                    style={{ width: 24, height: 24, color: 'var(--color-error-text)' }}
+                  >
                     <X size={13} />
                   </button>
                 </div>
@@ -184,24 +270,46 @@ export function KBEditorPage() {
             </div>
           </div>
 
+          {/* Attachments (edit mode only) */}
           {isEditing && (
-            <div className="panel-pad">
-              <h3 className="mb-3 text-sm font-semibold text-ink-900">Вложения</h3>
+            <div className="card card-pad">
+              <div className="section-label">Вложения</div>
               <input
                 type="file"
-                onChange={(event) => setFile(event.target.files?.[0] || null)}
-                className="mb-3 block w-full text-xs text-ink-500 file:mr-3 file:rounded-lg file:border-0 file:bg-surface-100 file:px-3 file:py-2 file:text-sm file:text-ink-700"
+                onChange={(e) => setFile(e.target.files?.[0] || null)}
+                style={{
+                  display: 'block', width: '100%', marginBottom: 'var(--space-3)',
+                  fontSize: 'var(--text-xs)', color: 'var(--color-text-tertiary)',
+                }}
               />
-              <button onClick={() => uploadAttachment.mutate()} disabled={!file || uploadAttachment.isPending} className="btn-secondary w-full">
+              <button
+                onClick={() => uploadAttachment.mutate()}
+                disabled={!file || uploadAttachment.isPending}
+                className="btn btn-secondary"
+                style={{ width: '100%' }}
+              >
                 <Paperclip size={15} />
                 Загрузить файл
               </button>
+
               {article.data?.attachments.length ? (
-                <div className="mt-3 space-y-1">
-                  {article.data.attachments.map((attachment) => (
-                    <div key={attachment.id} className="flex items-center gap-2 rounded bg-surface-50 px-2 py-1 text-xs text-ink-500">
-                      <span className="min-w-0 flex-1 truncate">{attachment.original_filename}</span>
-                      <button onClick={() => deleteAttachment.mutate(attachment.id)} className="shrink-0 text-ink-400 hover:text-red-600" title="Удалить">
+                <div style={{ marginTop: 'var(--space-3)', display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
+                  {article.data.attachments.map((att) => (
+                    <div key={att.id} style={{
+                      display: 'flex', alignItems: 'center', gap: 'var(--space-2)',
+                      background: 'var(--color-surface-2)', border: '1px solid var(--color-border)',
+                      borderRadius: 'var(--radius-md)', padding: '6px var(--space-3)',
+                      fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)',
+                    }}>
+                      <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {att.original_filename}
+                      </span>
+                      <button
+                        onClick={() => deleteAttachment.mutate(att.id)}
+                        className="btn btn-ghost btn-icon"
+                        style={{ width: 24, height: 24, color: 'var(--color-error-text)' }}
+                        title="Удалить"
+                      >
                         <Trash2 size={12} />
                       </button>
                     </div>
@@ -210,7 +318,7 @@ export function KBEditorPage() {
               ) : null}
             </div>
           )}
-        </aside>
+        </div>
       </div>
     </div>
   )
