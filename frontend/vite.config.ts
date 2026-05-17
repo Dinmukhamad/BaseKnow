@@ -3,18 +3,9 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 
-// Note: install vite-plugin-compression for gzip/brotli output
-// npm install -D vite-plugin-compression
-
 export default defineConfig(({ mode }) => ({
   plugins: [
-    react({
-      // Faster HMR in dev
-      fastRefresh: true,
-    }),
-    // Uncomment after installing vite-plugin-compression:
-    // compression({ algorithm: 'brotliCompress', ext: '.br' }),
-    // compression({ algorithm: 'gzip', ext: '.gz' }),
+    react(),
   ],
 
   base: './',
@@ -28,7 +19,6 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: '0.0.0.0',
     port: 5173,
-    // Proxy API in dev (adjust to your backend URL)
     proxy: {
       '/api': {
         target: 'http://localhost:8000',
@@ -37,49 +27,41 @@ export default defineConfig(({ mode }) => ({
     },
   },
 
-  css: {
-    // PostCSS config handled separately
-    devSourcemap: true,
-  },
-
   build: {
     target: 'es2020',
-    chunkSizeWarningLimit: 500,
+    chunkSizeWarningLimit: 600,
     minify: 'esbuild',
-    sourcemap: mode === 'development',
+    sourcemap: false,
     rollupOptions: {
       output: {
-        // Fine-grained code splitting
         manualChunks: (id) => {
-          // React core
-          if (id.includes('node_modules/react') ||
-              id.includes('node_modules/react-dom') ||
-              id.includes('node_modules/react-router-dom') ||
-              id.includes('node_modules/scheduler')) {
+          // React core — must be first
+          if (
+            id.includes('node_modules/react/') ||
+            id.includes('node_modules/react-dom/') ||
+            id.includes('node_modules/react-router-dom/') ||
+            id.includes('node_modules/scheduler/')
+          ) {
             return 'react-vendor'
           }
           // TanStack Query
           if (id.includes('@tanstack/react-query')) {
             return 'query-vendor'
           }
-          // Markdown editor (heaviest chunk, ~300KB)
-          if (id.includes('@uiw/react-md-editor') ||
-              id.includes('@uiw/react-markdown-preview') ||
-              id.includes('codemirror') ||
-              id.includes('rehype') ||
-              id.includes('remark')) {
-            return 'md-editor'
-          }
-          // State + routing utilities
-          if (id.includes('zustand') ||
-              id.includes('lucide-react') ||
-              id.includes('date-fns') ||
-              id.includes('clsx') ||
-              id.includes('axios')) {
+          // UI utilities
+          if (
+            id.includes('node_modules/zustand/') ||
+            id.includes('node_modules/lucide-react/') ||
+            id.includes('node_modules/date-fns/') ||
+            id.includes('node_modules/clsx/') ||
+            id.includes('node_modules/axios/')
+          ) {
             return 'ui-vendor'
           }
+          // NOTE: @uiw/react-md-editor is intentionally NOT listed here.
+          // It is lazy-loaded via React.lazy() in KBEditorPage and KBArticlePage.
+          // Putting it in manualChunks causes circular dependency ReferenceError.
         },
-        // Hashed filenames for long-term caching
         chunkFileNames: 'assets/[name]-[hash].js',
         entryFileNames: 'assets/[name]-[hash].js',
         assetFileNames: 'assets/[name]-[hash][extname]',
@@ -87,7 +69,6 @@ export default defineConfig(({ mode }) => ({
     },
   },
 
-  // Optimise deps pre-bundling
   optimizeDeps: {
     include: [
       'react',
@@ -101,7 +82,8 @@ export default defineConfig(({ mode }) => ({
       'clsx',
     ],
     exclude: [
-      '@uiw/react-md-editor', // lazy-loaded, don't pre-bundle
+      '@uiw/react-md-editor',
+      '@uiw/react-markdown-preview',
     ],
   },
 }))
