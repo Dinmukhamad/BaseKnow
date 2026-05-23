@@ -65,6 +65,21 @@ class Settings(BaseSettings):
     r2_bucket_name: str = Field(default="", alias="R2_BUCKET_NAME")
     r2_public_url: str = Field(default="", alias="R2_PUBLIC_URL")
 
+    # Comma-separated list of trusted reverse-proxy IPs whose X-Forwarded-For
+    # header we honour for client IP detection (audit logs, rate limiting).
+    # Leave empty to always use the direct socket IP (request.client.host).
+    # Example: TRUSTED_PROXIES=10.0.0.1,10.0.0.2
+    trusted_proxies: list[str] = Field(default=[], alias="TRUSTED_PROXIES")
+
+    @field_validator("trusted_proxies", mode="before")
+    @classmethod
+    def parse_trusted_proxies(cls, value: str | list[str] | None) -> list[str]:
+        if not value:
+            return []
+        if isinstance(value, list):
+            return [v.strip() for v in value if v.strip()]
+        return [v.strip() for v in value.split(",") if v.strip()]
+
     seed_admin_username: str = "admin"
     seed_admin_email: str = "admin@example.com"
     seed_admin_password: str = "Admin12345!"

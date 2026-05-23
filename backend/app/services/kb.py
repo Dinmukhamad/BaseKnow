@@ -8,7 +8,7 @@ from app.models.user import User
 from app.repositories.kb import KBAttachmentRepository, KBArticleRepository, KBDirectionRepository, KBTopicRepository
 from app.schemas.kb import KBArticleCreate, KBArticleUpdate, KBDirectionCreate, KBDirectionUpdate, KBTopicCreate, KBTopicUpdate
 from app.services.audit import AuditContext, AuditService
-from app.services.storage import R2StorageService
+from app.services.storage import R2StorageService, read_upload_safely
 
 
 def serialize_article(article: KBArticle) -> dict:
@@ -103,7 +103,7 @@ class KBService:
         if not article:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Article not found")
 
-        file_bytes = await file.read()
+        file_bytes = await read_upload_safely(file)
         original_filename = file.filename or "upload"
         content_type = file.content_type or "application/octet-stream"
 

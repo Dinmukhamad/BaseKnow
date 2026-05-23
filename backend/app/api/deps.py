@@ -4,6 +4,7 @@ from fastapi import Depends, Header, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.core.enums import Permission, UserRole
 from app.core.permissions import ensure_permissions, ensure_roles
 from app.core.security import decode_token
@@ -16,8 +17,29 @@ bearer_scheme = HTTPBearer(auto_error=False)
 DBSession = Annotated[Session, Depends(get_db)]
 
 
-def get_audit_context(request: Request, x_forwarded_for: str | None = Header(default=None)) -> AuditContext:
-    client_ip = x_forwarded_for.split(",")[0].strip() if x_forwarded_for else (request.client.host if request.client else None)
+def _get_client_ip(request: Request, x_forwarded_for: str | None) -> str | None:
+    """Return the real client IP, honouring X-Forwarded-For only when the
+    direct connection comes from a configured trusted proxy.
+
+    Without this check any client can forge X-Forwarded-For and spoof their IP
+    in audit logs and rate-limit counters.
+    """
+    direct_ip = request.client.host if request.client else None
+    settings = get_settings()
+
+    if x_forwarded_for and direct_ip and direct_ip in settings.trusted_proxies:
+        # Take the *first* (leftmost) IP — that's the original client.
+        return x_forwarded_for.split(",")[0].strip() or direct_ip
+
+    # Untrusted connection: ignore the header entirely.
+    return direct_ip
+
+
+def get_audit_context(
+    request: Request,
+    x_forwarded_for: str | None = Header(default=None),
+) -> AuditContext:
+    client_ip = _get_client_ip(request, x_forwarded_for)
     user_id = getattr(request.state, "user_id", None)
     return AuditContext(
         user_id=user_id,

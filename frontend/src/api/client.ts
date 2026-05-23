@@ -2,7 +2,22 @@ import axios, { AxiosError } from 'axios'
 
 const BASE_URL = import.meta.env.VITE_API_URL || ''
 
+// Access token stored in module-level memory only — never in localStorage or
+// sessionStorage. This means XSS cannot read the token via document.* APIs.
+// Trade-off: the token is lost on page reload and must be recovered via the
+// HttpOnly refresh-token cookie (see the 401 interceptor below).
+let _accessToken: string | null = null
+
+export function setAccessToken(token: string | null): void {
+  _accessToken = token
+}
+
+export function getAccessToken(): string | null {
+  return _accessToken
+}
+
 function redirectToLogin() {
+  _accessToken = null
   window.location.assign(`${window.location.origin}${window.location.pathname}#/login`)
 }
 
@@ -17,9 +32,8 @@ export const api = axios.create({
 })
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('access_token')
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
+  if (_accessToken) {
+    config.headers.Authorization = `Bearer ${_accessToken}`
   }
   return config
 })
@@ -37,11 +51,11 @@ api.interceptors.response.use(
           {},
           { withCredentials: true },
         )
-        localStorage.setItem('access_token', data.access_token)
+        setAccessToken(data.access_token)
         original.headers.Authorization = `Bearer ${data.access_token}`
         return api(original)
       } catch {
-        localStorage.removeItem('access_token')
+        setAccessToken(null)
         redirectToLogin()
       }
     }

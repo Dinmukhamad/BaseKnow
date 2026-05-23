@@ -8,7 +8,7 @@ from pathlib import Path
 
 import boto3
 from botocore.exceptions import BotoCoreError, ClientError
-from fastapi import HTTPException, status
+from fastapi import HTTPException, UploadFile, status
 
 from app.core.config import get_settings
 
@@ -23,10 +23,33 @@ ALLOWED_MIME_PREFIXES = (
 )
 
 MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024  # 25 MB
+READ_CHUNK_SIZE = 256 * 1024            # 256 KB per chunk
 
 
 def _is_allowed_mime(content_type: str) -> bool:
     return any(content_type.startswith(prefix) for prefix in ALLOWED_MIME_PREFIXES)
+
+
+async def read_upload_safely(file: UploadFile) -> bytes:
+    """Read an UploadFile in chunks and reject anything over MAX_FILE_SIZE_BYTES.
+
+    Raises HTTPException 400 if the file is too large — before the full payload
+    is buffered in memory, so a 2 GB upload never OOM-kills the worker.
+    """
+    chunks: list[bytes] = []
+    total = 0
+    while True:
+        chunk = await file.read(READ_CHUNK_SIZE)
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > MAX_FILE_SIZE_BYTES:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="File exceeds the 25 MB size limit.",
+            )
+        chunks.append(chunk)
+    return b"".join(chunks)
 
 
 class R2StorageService:
@@ -49,19 +72,13 @@ class R2StorageService:
         """Upload bytes to R2 and return the object key (storage_path).
 
         Raises:
-            HTTPException 400 — invalid MIME type or file too large
+            HTTPException 400 — invalid MIME type
             HTTPException 503 — R2 unreachable
         """
         if not _is_allowed_mime(content_type):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"File type '{content_type}' is not allowed.",
-            )
-
-        if len(file_bytes) > MAX_FILE_SIZE_BYTES:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="File exceeds the 25 MB size limit.",
             )
 
         ext = Path(filename).suffix  # e.g. ".pdf"
