@@ -224,7 +224,8 @@ code, kbd, samp {
   flex: 1;
   min-width: 0;
   overflow-y: auto;
-  overflow-x: hidden;
+  /* overflow-x: visible so buttons near the right edge are never clipped */
+  overflow-x: visible;
 }
 
 .page-container {
@@ -246,6 +247,11 @@ code, kbd, samp {
   padding-bottom: var(--space-5);
   border-bottom: 1px solid var(--color-border);
   flex-wrap: wrap;
+}
+
+/* Buttons group on the right side of page-header should never shrink below their natural size */
+.page-header > *:last-child {
+  flex-shrink: 0;
 }
 
 /* ─── CARD ───────────────────────────────────────────────── */
