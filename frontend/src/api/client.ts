@@ -10,6 +10,10 @@ export const api = axios.create({
   baseURL: `${BASE_URL}/api/v1`,
   headers: { 'Content-Type': 'application/json' },
   timeout: 15000,
+  // Required so the browser sends the refresh-token cookie on /auth/* calls.
+  // The server's CORS config must reply with Access-Control-Allow-Credentials: true
+  // and a specific (non-wildcard) Access-Control-Allow-Origin.
+  withCredentials: true,
 })
 
 api.interceptors.request.use((config) => {
@@ -26,20 +30,20 @@ api.interceptors.response.use(
     const original = error.config as typeof error.config & { _retry?: boolean }
     if (error.response?.status === 401 && original && !original._retry) {
       original._retry = true
-      const refreshToken = localStorage.getItem('refresh_token')
-      if (refreshToken) {
-        try {
-          const { data } = await axios.post(`${BASE_URL}/api/v1/auth/refresh`, { refresh_token: refreshToken })
-          localStorage.setItem('access_token', data.access_token)
-          localStorage.setItem('refresh_token', data.refresh_token)
-          original.headers.Authorization = `Bearer ${data.access_token}`
-          return api(original)
-        } catch {
-          localStorage.removeItem('access_token')
-          localStorage.removeItem('refresh_token')
-        }
+      try {
+        // No body — the refresh token is read from the HttpOnly cookie by the server.
+        const { data } = await axios.post(
+          `${BASE_URL}/api/v1/auth/refresh`,
+          {},
+          { withCredentials: true },
+        )
+        localStorage.setItem('access_token', data.access_token)
+        original.headers.Authorization = `Bearer ${data.access_token}`
+        return api(original)
+      } catch {
+        localStorage.removeItem('access_token')
+        redirectToLogin()
       }
-      redirectToLogin()
     }
     return Promise.reject(error)
   },

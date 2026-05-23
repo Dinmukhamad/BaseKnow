@@ -16,6 +16,10 @@ class Settings(BaseSettings):
 
     database_url: str = Field(..., alias="DATABASE_URL")
 
+    # "serverless" (default) → NullPool; "server" → traditional pool.
+    # See app.db.session for details.
+    db_pool_mode: str = Field(default="serverless", alias="DB_POOL_MODE")
+
     @field_validator("database_url", mode="before")
     @classmethod
     def normalize_database_url(cls, value: str) -> str:

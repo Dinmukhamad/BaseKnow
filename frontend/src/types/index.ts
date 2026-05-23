@@ -13,7 +13,8 @@ export interface User {
 
 export interface TokenResponse {
   access_token: string
-  refresh_token: string
+  // Delivered via HttpOnly cookie; kept optional for backwards compatibility.
+  refresh_token?: string | null
   token_type: string
   expires_in: number
 }

@@ -3,7 +3,7 @@ from hashlib import sha256
 from uuid import uuid4
 
 import bcrypt
-from jose import JWTError, jwt
+import jwt
 
 from app.core.config import get_settings
 
@@ -22,17 +22,25 @@ def hash_token(token: str) -> str:
 
 def create_token(subject: str, token_type: str, expires_delta: timedelta, extra: dict | None = None) -> tuple[str, datetime, str]:
     settings = get_settings()
-    expires_at = datetime.now(UTC) + expires_delta
+    now = datetime.now(UTC)
+    expires_at = now + expires_delta
     jti = str(uuid4())
-    payload = {"sub": subject, "type": token_type, "exp": expires_at, "iat": datetime.now(UTC), "jti": jti}
+    payload = {"sub": subject, "type": token_type, "exp": expires_at, "iat": now, "jti": jti}
     if extra:
         payload.update(extra)
-    return jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm), expires_at, jti
+    token = jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+    return token, expires_at, jti
 
 
 def decode_token(token: str) -> dict:
     settings = get_settings()
     try:
-        return jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
-    except JWTError as exc:
+        return jwt.decode(
+            token,
+            settings.jwt_secret_key,
+            # Pin the algorithm — never trust the `alg` header on input,
+            # or you open the door to "alg: none" / HS256-vs-RS256 confusion.
+            algorithms=[settings.jwt_algorithm],
+        )
+    except jwt.PyJWTError as exc:
         raise ValueError("Invalid token") from exc

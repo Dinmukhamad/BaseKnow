@@ -21,7 +21,7 @@ class AuthService:
         self.refresh_tokens = RefreshTokenRepository(db)
         self.audit = AuditService(db)
 
-    def authenticate(self, username: str, password: str, context: AuditContext) -> TokenResponse:
+    def authenticate(self, username: str, password: str, context: AuditContext) -> tuple[TokenResponse, str]:
         user = self.users.get_by_username(username)
         if not user or not verify_password(password, user.password_hash) or not user.is_active:
             self.audit.log(action=ActionType.LOGIN_FAILED, entity_type=EntityType.AUTH, context=context, description=f"Failed login for {username}")
@@ -29,12 +29,12 @@ class AuthService:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password")
 
         user.last_login_at = datetime.now(UTC)
-        tokens = self._issue_tokens(user, context)
+        tokens, refresh_plain = self._issue_tokens(user, context)
         self.audit.log(action=ActionType.LOGIN, entity_type=EntityType.AUTH, entity_id=user.id, context=context, description="User logged in")
         self.db.commit()
-        return tokens
+        return tokens, refresh_plain
 
-    def refresh(self, refresh_token: str, context: AuditContext) -> TokenResponse:
+    def refresh(self, refresh_token: str, context: AuditContext) -> tuple[TokenResponse, str]:
         payload = self._decode_refresh(refresh_token)
         stored = self.refresh_tokens.get_active_by_hash(hash_token(refresh_token))
         if not stored or stored.user_id != payload["sub"]:
@@ -43,10 +43,10 @@ class AuthService:
         user = self.users.get(stored.user_id)
         if not user or not user.is_active:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Inactive user")
-        tokens = self._issue_tokens(user, context)
+        tokens, refresh_plain = self._issue_tokens(user, context)
         self.audit.log(action=ActionType.TOKEN_REFRESH, entity_type=EntityType.AUTH, entity_id=user.id, context=context, description="Refresh token rotated")
         self.db.commit()
-        return tokens
+        return tokens, refresh_plain
 
     def logout(self, refresh_token: str | None, user: User, context: AuditContext) -> None:
         if refresh_token:
@@ -56,7 +56,7 @@ class AuthService:
         self.audit.log(action=ActionType.LOGOUT, entity_type=EntityType.AUTH, entity_id=user.id, context=context, description="User logged out")
         self.db.commit()
 
-    def _issue_tokens(self, user: User, context: AuditContext) -> TokenResponse:
+    def _issue_tokens(self, user: User, context: AuditContext) -> tuple[TokenResponse, str]:
         access, access_expires_at, _ = create_token(
             user.id,
             "access",
@@ -74,11 +74,13 @@ class AuthService:
                 "user_agent": context.user_agent,
             }
         )
-        return TokenResponse(
+        response = TokenResponse(
             access_token=access,
-            refresh_token=refresh,
+            # refresh is delivered via HttpOnly cookie by the endpoint layer
+            refresh_token=None,
             expires_in=int((access_expires_at - datetime.now(UTC)).total_seconds()),
         )
+        return response, refresh
 
     @staticmethod
     def _decode_refresh(token: str) -> dict:

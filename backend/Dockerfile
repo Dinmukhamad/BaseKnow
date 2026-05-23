@@ -12,4 +12,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-CMD ["sh", "-c", "alembic upgrade head && python -m app.seed && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Seed is intentionally NOT run on container start.
+# - It can clobber data and (historically) leaked credentials to stdout.
+# - To bootstrap a fresh environment, run once manually:
+#     docker compose exec backend python -m app.seed
+CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

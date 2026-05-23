@@ -3,20 +3,45 @@ from functools import lru_cache
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import NullPool
 
 from app.core.config import get_settings
 
 
 @lru_cache
 def _get_engine():
+    """Create the SQLAlchemy engine.
+
+    Pool sizing strategy is controlled by ``settings.db_pool_mode``:
+
+    * ``serverless`` (default): use ``NullPool`` — each request opens and
+      closes its own connection. This is the correct choice for Vercel /
+      AWS Lambda because the process may be frozen or killed between
+      invocations; persistent pool connections silently leak in that model.
+      Strongly recommended to point ``DATABASE_URL`` at a connection pooler
+      (PgBouncer, Neon pooled URL) so the per-request connection is cheap.
+
+    * ``server``: traditional pool tuned for a long-running uvicorn worker.
+    """
     settings = get_settings()
+
+    if settings.db_pool_mode == "server":
+        return create_engine(
+            settings.database_url,
+            pool_pre_ping=True,
+            future=True,
+            pool_size=10,
+            max_overflow=20,
+            pool_recycle=1800,  # 30 min
+            pool_timeout=30,
+        )
+
+    # serverless (default)
     return create_engine(
         settings.database_url,
-        pool_pre_ping=True,
+        poolclass=NullPool,
         future=True,
-        pool_size=1,
-        max_overflow=0,
-        pool_recycle=600,
+        # pool_pre_ping is irrelevant with NullPool — every connection is fresh.
     )
 
 

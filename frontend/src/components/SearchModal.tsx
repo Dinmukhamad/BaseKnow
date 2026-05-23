@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { FileText, Search, Clock, X, ArrowRight, Keyboard } from 'lucide-react'
 import api from '@/api/client'
 import { useDebounce } from '@/lib/useDebounce'
-import { addToHistory, getHistory } from '@/lib/history'
+import { addToHistory } from '@/lib/history'
 import type { KBArticleListItem, PaginatedResponse } from '@/types'
 
 const SEARCH_HISTORY_KEY = 'bk-search-history'
@@ -28,12 +28,19 @@ interface Props {
   onClose: () => void
 }
 
-function highlight(text: string, query: string): string {
-  if (!query.trim()) return text
+function HighlightedText({ text, query }: { text: string; query: string }) {
+  if (!query.trim()) return <>{text}</>
   const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  return text.replace(
-    new RegExp(`(${escaped})`, 'gi'),
-    '<mark class="highlight">$1</mark>'
+  const parts = text.split(new RegExp(`(${escaped})`, 'gi'))
+  const needle = query.toLowerCase()
+  return (
+    <>
+      {parts.map((part, i) =>
+        part.toLowerCase() === needle
+          ? <mark key={i} className="highlight">{part}</mark>
+          : <span key={i}>{part}</span>
+      )}
+    </>
   )
 }
 
@@ -195,10 +202,9 @@ export function SearchModal({ open, onClose }: Props) {
                 <div
                   style={{ fontSize: 'var(--text-sm)', fontWeight: 500,
                   color: 'var(--color-text-primary)' }}
-                  dangerouslySetInnerHTML={{
-                    __html: highlight(item.title, debouncedQ)
-                  }}
-                />
+                >
+                  <HighlightedText text={item.title} query={debouncedQ} />
+                </div>
                 {!item.is_actual && (
                   <span className="pill pill-warning" style={{ marginTop: 4, display: 'inline-flex' }}>
                     Устарело

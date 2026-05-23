@@ -8,9 +8,11 @@ import {
 } from 'lucide-react'
 import { lazy, Suspense, useEffect } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import rehypeSanitize from 'rehype-sanitize'
 import api from '@/api/client'
 import { canManageKB } from '@/lib/rbac'
 import { addToHistory } from '@/lib/history'
+import { safeUrl } from '@/lib/safeUrl'
 import { useAuthStore } from '@/store/auth'
 import { useFavoritesStore } from '@/store/favorites'
 import { useToast } from '@/components/Toast'
@@ -192,7 +194,13 @@ export function KBArticlePage() {
                   Загрузка содержания...
                 </div>
               }>
-                <MDMarkdown source={a.content} />
+                <MDMarkdown
+                  source={a.content}
+                  // Explicit sanitization. Defends against `dangerouslySetInnerHTML`-style
+                  // smuggling via raw HTML or unsafe URL schemes if a future change
+                  // adds `rehypePlugins={[rehypeRaw]}` somewhere.
+                  rehypePlugins={[[rehypeSanitize]]}
+                />
               </Suspense>
             </div>
 
@@ -246,10 +254,13 @@ export function KBArticlePage() {
                   <div>
                     <div className="section-label">Ссылки</div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-                      {a.links.map(link => (
+                      {a.links.map(link => {
+                        const href = safeUrl(link)
+                        if (!href) return null
+                        return (
                         <a
                           key={link}
-                          href={link}
+                          href={href}
                           target="_blank"
                           rel="noopener noreferrer"
                           style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)',
@@ -264,7 +275,8 @@ export function KBArticlePage() {
                             {link}
                           </span>
                         </a>
-                      ))}
+                        )
+                      })}
                     </div>
                   </div>
                 )}
