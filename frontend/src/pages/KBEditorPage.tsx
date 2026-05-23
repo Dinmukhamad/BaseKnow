@@ -3,6 +3,7 @@ import { ArrowLeft, Paperclip, Plus, Save, Trash2, X } from 'lucide-react'
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import api from '@/api/client'
+import { safeUrl } from '@/lib/safeUrl'
 import type { KBArticle, KBDirection, KBTopic } from '@/types'
 
 const MDEditor = lazy(() => import('@uiw/react-md-editor'))
@@ -99,9 +100,16 @@ export function KBEditorPage() {
   }
 
   const addLink = () => {
-    if (!link.trim()) return
-    setLinks((cur) => [...cur, link.trim()])
+    const trimmed = link.trim()
+    if (!trimmed) return
+    const safe = safeUrl(trimmed)
+    if (!safe) {
+      setErrorMsg('Недопустимый URL. Разрешены только http://, https://, mailto:, tel:')
+      return
+    }
+    setLinks((cur) => [...cur, safe])
     setLink('')
+    setErrorMsg('')
   }
 
   return (

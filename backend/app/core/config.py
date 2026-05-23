@@ -82,7 +82,7 @@ class Settings(BaseSettings):
 
     seed_admin_username: str = "admin"
     seed_admin_email: str = "admin@example.com"
-    seed_admin_password: str = "Admin12345!"
+    seed_admin_password: str = Field(default=..., alias="SEED_ADMIN_PASSWORD", description="Required in dev: initial admin password for seed script")
 
 
 @lru_cache

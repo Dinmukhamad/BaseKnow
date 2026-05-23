@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import CurrentUser, get_audit_context, get_db, require_permissions
 from app.core.enums import ActionType, EntityType, Permission
+from app.core.limiter import limiter
 from app.schemas.user import UserCreate, UserRead, UserUpdate
 from app.services.audit import AuditContext, AuditService
 from app.services.user import UserService
@@ -36,7 +37,9 @@ def get_user(user_id: str, db: Session = Depends(get_db)):
 
 
 @router.post("", response_model=UserRead, dependencies=[Depends(require_permissions(Permission.USERS_MANAGE))])
+@limiter.limit("20/minute")
 def create_user(
+    request: Request,
     payload: UserCreate,
     current_user: CurrentUser,
     context: AuditContext = Depends(get_audit_context),
