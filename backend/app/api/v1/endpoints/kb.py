@@ -189,10 +189,13 @@ def update_direction(direction_id: str, payload: KBDirectionUpdate, current_user
     return KBService(db).update_direction(direction_id, payload, context)
 
 
-@router.delete("/directions/{direction_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_permissions(Permission.DICTIONARIES_MANAGE))])
+@router.delete("/directions/{direction_id}", dependencies=[Depends(require_permissions(Permission.DICTIONARIES_MANAGE))])
 def delete_direction(direction_id: str, current_user: CurrentUser, context: AuditContext = Depends(get_audit_context), db: Session = Depends(get_db)):
+    from app.repositories.kb import KBArticleRepository
+    orphaned = KBArticleRepository(db).count_by_direction(direction_id)
     context = AuditContext(user_id=current_user.id, ip_address=context.ip_address, user_agent=context.user_agent)
     KBService(db).delete_direction(direction_id, context)
+    return {"orphaned_articles": orphaned}
 
 
 # ── Topics ──
@@ -215,7 +218,10 @@ def update_topic(topic_id: str, payload: KBTopicUpdate, current_user: CurrentUse
     return KBService(db).update_topic(topic_id, payload, context)
 
 
-@router.delete("/topics/{topic_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_permissions(Permission.DICTIONARIES_MANAGE))])
+@router.delete("/topics/{topic_id}", dependencies=[Depends(require_permissions(Permission.DICTIONARIES_MANAGE))])
 def delete_topic(topic_id: str, current_user: CurrentUser, context: AuditContext = Depends(get_audit_context), db: Session = Depends(get_db)):
+    from app.repositories.kb import KBArticleRepository
+    orphaned = KBArticleRepository(db).count_by_topic(topic_id)
     context = AuditContext(user_id=current_user.id, ip_address=context.ip_address, user_agent=context.user_agent)
     KBService(db).delete_topic(topic_id, context)
+    return {"orphaned_articles": orphaned}

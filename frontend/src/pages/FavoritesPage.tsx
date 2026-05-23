@@ -1,4 +1,5 @@
 // src/pages/FavoritesPage.tsx
+import { useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import { ru } from 'date-fns/locale'
@@ -12,6 +13,21 @@ import type { KBArticle } from '@/types'
 export function FavoritesPage() {
   const { items, remove, clear } = useFavoritesStore()
   const { success } = useToast()
+
+  // Verify each saved article still exists — remove stale entries silently.
+  // Runs once when the page mounts so the list never shows dead links.
+  useEffect(() => {
+    if (items.length === 0) return
+    const ids = items.map((i) => i.id)
+    Promise.allSettled(ids.map((id) => api.get(`/kb/articles/${id}`))).then((results) => {
+      results.forEach((result, idx) => {
+        if (result.status === 'rejected') {
+          remove(ids[idx])
+        }
+      })
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
     <div className="page-container">

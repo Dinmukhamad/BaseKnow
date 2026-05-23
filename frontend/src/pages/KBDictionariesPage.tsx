@@ -16,6 +16,7 @@ export function KBDictionariesPage() {
   const [newDirectionDesc, setNewDirectionDesc] = useState('')
   const [newTopicName, setNewTopicName] = useState<Record<string, string>>({})
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [orphanedCount, setOrphanedCount] = useState<number | null>(null)
 
   const directions = useQuery({
     queryKey: ['kb-directions-all'],
@@ -42,9 +43,13 @@ export function KBDictionariesPage() {
   })
 
   const deleteDirection = useMutation({
-    mutationFn: (id: string) => api.delete(`/kb/directions/${id}`),
-    onSuccess: () => {
+    mutationFn: (id: string) => api.delete(`/kb/directions/${id}`).then((r) => r.data),
+    onSuccess: (data) => {
       setDeletingId(null)
+      setOrphanedCount(null)
+      if (data?.orphaned_articles > 0) {
+        setOrphanedCount(data.orphaned_articles)
+      }
       queryClient.invalidateQueries({ queryKey: ['kb-directions-all'] })
       queryClient.invalidateQueries({ queryKey: ['kb-directions'] })
       queryClient.invalidateQueries({ queryKey: ['kb-topics-all'] })
@@ -62,9 +67,13 @@ export function KBDictionariesPage() {
   })
 
   const deleteTopic = useMutation({
-    mutationFn: (id: string) => api.delete(`/kb/topics/${id}`),
-    onSuccess: () => {
+    mutationFn: (id: string) => api.delete(`/kb/topics/${id}`).then((r) => r.data),
+    onSuccess: (data) => {
       setDeletingId(null)
+      setOrphanedCount(null)
+      if (data?.orphaned_articles > 0) {
+        setOrphanedCount(data.orphaned_articles)
+      }
       queryClient.invalidateQueries({ queryKey: ['kb-topics-all'] })
       queryClient.invalidateQueries({ queryKey: ['kb-topics'] })
     },
@@ -289,8 +298,8 @@ export function KBDictionariesPage() {
               <button
                 onClick={() => {
                   const isDirection = directions.data?.some((d) => d.id === deletingId)
-                  if (isDirection) deleteDirection.mutate(deletingId)
-                  else deleteTopic.mutate(deletingId)
+                  if (isDirection) deleteDirection.mutate(deletingId!)
+                  else deleteTopic.mutate(deletingId!)
                 }}
                 disabled={deleteDirection.isPending || deleteTopic.isPending}
                 className="btn btn-danger"
@@ -299,6 +308,13 @@ export function KBDictionariesPage() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {orphanedCount !== null && orphanedCount > 0 && (
+        <div className="alert alert-warning" style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 1000, maxWidth: 360 }}>
+          <strong>{orphanedCount} {orphanedCount === 1 ? 'статья потеряла' : 'статей потеряли'} привязку</strong> — они остались в базе, но теперь без направления/тематики.
+          <button onClick={() => setOrphanedCount(null)} style={{ marginLeft: 12, background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500 }}>✕</button>
         </div>
       )}
     </div>

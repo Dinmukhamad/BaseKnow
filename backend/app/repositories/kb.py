@@ -30,6 +30,12 @@ class KBTopicRepository(BaseRepository[KBTopic]):
 class KBArticleRepository(BaseRepository[KBArticle]):
     model = KBArticle
 
+    def count_by_direction(self, direction_id: str) -> int:
+        return self.db.scalar(select(func.count()).where(KBArticle.direction_id == direction_id)) or 0
+
+    def count_by_topic(self, topic_id: str) -> int:
+        return self.db.scalar(select(func.count()).where(KBArticle.topic_id == topic_id)) or 0
+
     def build_search_query(
         self,
         *,
